@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { Project } from "@/lib/types/database"
 import { formatDistanceToNow } from "date-fns"
 import { sv } from "date-fns/locale"
+import { EditProjectDialog } from "@/components/edit-project-dialog"
 
 interface ProjectsTableProps {
   projects: Project[]
@@ -42,6 +43,7 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Kostnad</TableHead>
             <TableHead className="text-right">Skapad</TableHead>
+            <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -58,6 +60,9 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
                   addSuffix: true,
                   locale: sv,
                 })}
+              </TableCell>
+              <TableCell>
+                <EditProjectDialog project={project} />
               </TableCell>
             </TableRow>
           ))}

@@ -23,6 +23,20 @@
     - Uppdatera "Top-up/Spend"-modalen så man kan välja ett Projekt (valfritt).
     - Uppdatera `addTransaction` så att `project_id` sparas i `credit_ledger`.
     - *Resultat:* Vi kan se exakt vad krediter dragits för.
+- [x] **Calculate Project Cost:**
+    - Uppdatera `getProjectsByOrgId` (eller skapa ny) så att den räknar ut summan av alla negativa transaktioner i `credit_ledger` kopplade till projektet.
+    - Fältet `cost_credits` i tabellen ska visa verklig förbrukning (t.ex. "500 kr").
+- [x] **Edit Project (Update Status):**
+    - Skapa `updateProject` Server Action.
+    - Lägg till en "Redigera"-knapp (eller pen-ikon) i projekttabellen.
+    - Möjliggör ändring av Titel och framförallt **Status** (så vi kan flytta projekt från "In Progress" -> "Done").
+- [ ] **Safe Delete:**
+    - Lägg till en "Ta bort"-knapp (gärna i Edit-dialogen med en "Är du säker?"-varning).
+    - Skapa Server Action `deleteProject`.
+    - **Logik:** Kontrollera först om det finns rader i `credit_ledger` kopplade till projektet.
+    - **Regel:**
+        - Om transaktioner finns: Kasta ett fel/returnera error ("Kan ej radera projekt med ekonomisk historik. Sätt status till Cancelled istället.").
+        - Om inga transaktioner finns: Utför `DELETE` från databasen.
 
 ### Feature E: Security & Hardening (Tech Debt)
 *Nu säkrar vi datan innan vi växer.*

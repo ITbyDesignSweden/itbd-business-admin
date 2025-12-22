@@ -156,7 +156,27 @@ export async function getProjectsByOrgId(orgId: string): Promise<Project[]> {
     return []
   }
 
-  return projects || []
+  // Calculate actual cost for each project based on credit_ledger transactions
+  const projectsWithCost = await Promise.all(
+    (projects || []).map(async (project) => {
+      const { data: transactions } = await supabase
+        .from("credit_ledger")
+        .select("amount")
+        .eq("project_id", project.id)
+
+      // Sum all credits (positive and negative) linked to this project
+      // Negative sum = cost, positive sum = credit (show as 0 cost)
+      const sum = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0
+      const totalCost = sum < 0 ? Math.abs(sum) : 0
+
+      return {
+        ...project,
+        cost_credits: totalCost,
+      }
+    })
+  )
+
+  return projectsWithCost
 }
 
 // Validation schema for adding transaction
@@ -403,6 +423,67 @@ export async function createProject(
     }
 
     // Revalidate organization page to show new project
+    revalidatePath(`/organizations/${validatedData.orgId}`)
+
+    return {
+      success: true,
+      data: data as Project,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+
+// Validation schema for updating project
+const updateProjectSchema = z.object({
+  id: z.string().uuid("Ogiltigt projekt-ID"),
+  orgId: z.string().uuid("Ogiltigt organisations-ID"),
+  title: z.string().min(1, "Projekttitel krävs").max(255, "Titeln är för lång"),
+  status: z.enum(["backlog", "in_progress", "completed", "cancelled"]),
+})
+
+export type UpdateProjectInput = z.infer<typeof updateProjectSchema>
+
+export async function updateProject(
+  input: UpdateProjectInput
+): Promise<{ success: boolean; error?: string; data?: Project }> {
+  try {
+    // Validate input
+    const validatedData = updateProjectSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Update project
+    const { data, error } = await supabase
+      .from("projects")
+      .update({
+        title: validatedData.title,
+        status: validatedData.status,
+      })
+      .eq("id", validatedData.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error updating project:", error)
+      return {
+        success: false,
+        error: "Kunde inte uppdatera projekt. Försök igen.",
+      }
+    }
+
+    // Revalidate organization page to show updated project
     revalidatePath(`/organizations/${validatedData.orgId}`)
 
     return {
