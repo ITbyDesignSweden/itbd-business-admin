@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Plus } from "lucide-react"
-import { toast } from "sonner"
+import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -34,7 +34,6 @@ const formSchema = z.object({
       required_error: "Antal krediter krävs",
       invalid_type_error: "Måste vara ett nummer",
     })
-    .positive("Antal krediter måste vara större än 0")
     .int("Antal krediter måste vara ett heltal"),
   description: z.string().min(1, "Beskrivning krävs").max(255, "Beskrivningen är för lång"),
 })
@@ -49,6 +48,7 @@ interface TopUpCreditsDialogProps {
 export function TopUpCreditsDialog({ orgId, orgName }: TopUpCreditsDialogProps) {
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -68,21 +68,36 @@ export function TopUpCreditsDialog({ orgId, orgName }: TopUpCreditsDialogProps) 
       })
 
       if (result.success) {
-        toast.success("Krediter tillagda!", {
-          description: `${values.amount} krediter har lagts till för ${orgName}.`,
-        })
+        if (values.amount === 0) {
+          toast({
+            title: "Transaktion registrerad",
+            description: `Nolltransaktion sparad för ${orgName}.`,
+          })
+        } else {
+          const isNegative = values.amount < 0
+          const actionText = isNegative ? "korrigerade" : "tillagda"
+          const amountDisplay = Math.abs(values.amount)
+          
+          toast({
+            title: `Krediter ${actionText}`,
+            description: `${isNegative ? '-' : '+'}${amountDisplay} krediter för ${orgName}.`,
+          })
+        }
         setOpen(false)
-        form.reset({
-          description: "",
-        })
+        form.reset()
       } else {
-        toast.error("Något gick fel", {
-          description: result.error || "Kunde inte lägga till krediter. Försök igen.",
+        console.log("Transaction error:", result.error)
+        toast({
+          variant: "destructive",
+          title: "Otillräckligt saldo",
+          description: result.error || "Kunde inte uppdatera krediter. Försök igen.",
         })
       }
     } catch (error) {
       console.error("Error submitting form:", error)
-      toast.error("Något gick fel", {
+      toast({
+        variant: "destructive",
+        title: "Något gick fel",
         description: "Ett oväntat fel uppstod. Försök igen.",
       })
     } finally {
@@ -90,19 +105,34 @@ export function TopUpCreditsDialog({ orgId, orgName }: TopUpCreditsDialogProps) 
     }
   }
 
+  function handleOpenChange(newOpen: boolean) {
+    setOpen(newOpen)
+    // Always reset form when dialog state changes
+    if (!newOpen) {
+      // Dialog is closing - reset everything
+      setTimeout(() => {
+        form.reset()
+        setIsSubmitting(false)
+      }, 100)
+    } else {
+      // Dialog is opening - ensure clean state
+      form.reset()
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Lägg till krediter
+          Hantera krediter
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Lägg till krediter</DialogTitle>
+          <DialogTitle>Hantera krediter</DialogTitle>
           <DialogDescription>
-            Lägg till krediter för <span className="font-semibold">{orgName}</span>
+            Lägg till eller korrigera krediter för <span className="font-semibold">{orgName}</span>
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -116,13 +146,15 @@ export function TopUpCreditsDialog({ orgId, orgName }: TopUpCreditsDialogProps) 
                   <FormControl>
                     <Input
                       type="number"
-                      placeholder="t.ex. 10000"
+                      placeholder="t.ex. 10000 eller -500"
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => field.onChange(e.target.value)}
                     />
                   </FormControl>
-                  <FormDescription>Ange antal krediter som ska läggas till</FormDescription>
+                  <FormDescription>
+                    Positivt lägger till, negativt drar av. Saldo kan inte bli negativt.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -134,21 +166,29 @@ export function TopUpCreditsDialog({ orgId, orgName }: TopUpCreditsDialogProps) 
                 <FormItem>
                   <FormLabel>Beskrivning</FormLabel>
                   <FormControl>
-                    <Input placeholder="t.ex. Faktura #1234 - Top-up" {...field} />
+                    <Input placeholder="t.ex. Faktura #1234 eller Korrigering fel debitering" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Beskriv anledningen till påfyllningen (visas i transaktionshistoriken)
+                    Beskriv anledningen till transaktionen (visas i historiken)
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  form.reset()
+                  setOpen(false)
+                }}
+                disabled={isSubmitting}
+              >
                 Avbryt
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Lägger till..." : "Lägg till krediter"}
+                {isSubmitting ? "Sparar..." : "Spara transaktion"}
               </Button>
             </DialogFooter>
           </form>

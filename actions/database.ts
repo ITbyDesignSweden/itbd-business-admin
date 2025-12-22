@@ -145,7 +145,7 @@ export async function getCreditLedgerByOrgId(orgId: string): Promise<CreditLedge
 // Validation schema for adding transaction
 const addTransactionSchema = z.object({
   orgId: z.string().uuid("Ogiltigt organisations-ID"),
-  amount: z.number().positive("Antal krediter måste vara större än 0"),
+  amount: z.number().int("Antal krediter måste vara ett heltal"),
   description: z.string().min(1, "Beskrivning krävs").max(255, "Beskrivningen är för lång"),
 })
 
@@ -159,6 +159,22 @@ export async function addTransaction(
     const validatedData = addTransactionSchema.parse(input)
 
     const supabase = await createClient()
+
+    // Check current balance to ensure it won't go negative
+    const { data: credits } = await supabase
+      .from("credit_ledger")
+      .select("amount")
+      .eq("org_id", validatedData.orgId)
+
+    const currentBalance = credits?.reduce((sum, entry) => sum + entry.amount, 0) || 0
+    const newBalance = currentBalance + validatedData.amount
+
+    if (newBalance < 0) {
+      return {
+        success: false,
+        error: `Otillräckligt saldo. Nuvarande saldo: ${currentBalance} krediter. Transaktionen skulle resultera i: ${newBalance} krediter.`,
+      }
+    }
 
     // Insert transaction
     const { data, error } = await supabase

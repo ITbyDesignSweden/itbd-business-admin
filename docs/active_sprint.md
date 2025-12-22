@@ -31,7 +31,7 @@
     - Implementera hela flödet för att redigera en organisation.
     - **Backend:** Skapa Server Action `updateOrganization`.
     - **Frontend:** Lägg till "Redigera"-knapp på detaljsidan som öppnar en Dialog där man kan ändra Namn, Org.nr och Status.
-- [ ] **Credit Correction (Vertical Slice):**
+- [x] **Credit Correction (Vertical Slice):**
     - Uppdatera "Top-up"-modalen och `addTransaction`-actionen för att tillåta **negativa värden**.
     - Detta möjliggör korrigeringar (t.ex. -10 krediter) utan att vi behöver ta bort rader i databasen.
 
