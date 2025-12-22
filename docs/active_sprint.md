@@ -20,7 +20,7 @@
 ### Feature B: Organisations-detaljer & Krediter
 - [x] Skapa dynamisk route: `app/(dashboard)/organizations/[id]/page.tsx`.
 - [x] På detaljsidan: Visa kundens info och en lista på deras transaktioner (Credit Ledger).
-- [ ] Skapa funktion: "Top-up Credits" (Knapp som öppnar modal).
+- [X] Skapa funktion: "Top-up Credits" (Knapp som öppnar modal).
     - Input: Antal krediter, Beskrivning (t.ex. "Faktura 1024").
     - Server Action: `addTransaction` (Insert till `credit_ledger`).
 

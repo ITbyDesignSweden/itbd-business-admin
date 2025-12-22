@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getOrganizationById, getCreditLedgerByOrgId } from "@/actions/database"
 import { CreditLedgerTable } from "@/components/credit-ledger-table"
+import { TopUpCreditsDialog } from "@/components/top-up-credits-dialog"
 
 interface OrganizationPageProps {
   params: Promise<{
@@ -95,8 +96,9 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
 
       {/* Transaction History */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Transaktionshistorik</CardTitle>
+          <TopUpCreditsDialog orgId={organization.id} orgName={organization.name} />
         </CardHeader>
         <CardContent>
           <CreditLedgerTable transactions={transactions} />

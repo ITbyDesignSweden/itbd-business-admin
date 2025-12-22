@@ -142,6 +142,67 @@ export async function getCreditLedgerByOrgId(orgId: string): Promise<CreditLedge
   return transactions || []
 }
 
+// Validation schema for adding transaction
+const addTransactionSchema = z.object({
+  orgId: z.string().uuid("Ogiltigt organisations-ID"),
+  amount: z.number().positive("Antal krediter måste vara större än 0"),
+  description: z.string().min(1, "Beskrivning krävs").max(255, "Beskrivningen är för lång"),
+})
+
+export type AddTransactionInput = z.infer<typeof addTransactionSchema>
+
+export async function addTransaction(
+  input: AddTransactionInput
+): Promise<{ success: boolean; error?: string; data?: CreditLedger }> {
+  try {
+    // Validate input
+    const validatedData = addTransactionSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Insert transaction
+    const { data, error } = await supabase
+      .from("credit_ledger")
+      .insert({
+        org_id: validatedData.orgId,
+        amount: validatedData.amount,
+        description: validatedData.description,
+        project_id: null,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error adding transaction:", error)
+      return {
+        success: false,
+        error: "Kunde inte lägga till transaktion. Försök igen.",
+      }
+    }
+
+    // Revalidate organization page to show new transaction
+    revalidatePath(`/organizations/${validatedData.orgId}`)
+
+    return {
+      success: true,
+      data: data as CreditLedger,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+
 // Validation schema for creating organization
 const createOrganizationSchema = z.object({
   name: z.string().min(1, "Organisationsnamn krävs").max(255),
