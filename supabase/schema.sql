@@ -4,7 +4,7 @@ create table public.organizations (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   name text not null,
   org_nr text,
-  subscription_plan text default 'care' check (subscription_plan in ('care', 'growth', 'scale')),
+  subscription_plan text check (subscription_plan is null or subscription_plan in ('care', 'growth', 'scale')),
   status text default 'pilot' check (status in ('pilot', 'active', 'churned'))
 );
 
@@ -55,4 +55,34 @@ create policy "Authenticated users can do everything on credit_ledger"
 
 create policy "Authenticated users can do everything on projects"
   on projects for all using (auth.uid() IS NOT NULL);
+
+-- 5. Pilot Requests (Inbound Funnel)
+create table public.pilot_requests (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  email text not null,
+  contact_name text not null,
+  company_name text not null,
+  org_nr text,
+  description text,
+  file_path text, -- Path to uploaded file in storage
+  status text default 'pending' check (status in ('pending', 'approved', 'rejected'))
+);
+
+-- RLS is ENABLED for pilot_requests to protect personal data
+alter table public.pilot_requests enable row level security;
+
+-- Only authenticated admins can read/update
+-- Public submissions are handled via Edge Function (submit-pilot-request)
+-- which uses service_role to bypass RLS in a controlled manner
+create policy "authenticated_select_pilot_requests"
+  on pilot_requests for select 
+  to authenticated
+  using (true);
+
+create policy "authenticated_update_pilot_requests"
+  on pilot_requests for update 
+  to authenticated
+  using (true)
+  with check (true);
 

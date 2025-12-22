@@ -1,4 +1,4 @@
-export type SubscriptionPlan = "care" | "growth" | "scale"
+export type SubscriptionPlan = "care" | "growth" | "scale" | null
 export type OrganizationStatus = "pilot" | "active" | "churned"
 export type ProjectStatus = "backlog" | "in_progress" | "completed" | "cancelled"
 

@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/sidebar"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { getUser } from "@/actions/auth"
 import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 
 export default async function DashboardLayout({
   children,
@@ -9,6 +10,11 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const user = await getUser()
+
+  // Protect dashboard routes (Next.js 16 pattern: auth in layout)
+  if (!user) {
+    redirect("/login")
+  }
   const supabase = await createClient()
 
   // Try to get profile data (gracefully handle errors)

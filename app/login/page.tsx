@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { login } from "@/actions/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useFormStatus } from "react-dom"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 
 function SubmitButton() {
   const { pending } = useFormStatus()
@@ -18,6 +20,19 @@ function SubmitButton() {
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+
+  // Check if user is already logged in (Next.js 16 pattern)
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        router.push("/")
+      }
+    }
+    checkAuth()
+  }, [router])
 
   async function handleSubmit(formData: FormData) {
     setError(null)

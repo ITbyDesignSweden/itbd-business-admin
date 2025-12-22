@@ -17,16 +17,27 @@ interface OrganizationPageProps {
   }>
 }
 
-function getPlanColor(plan: string) {
+function getPlanColor(plan: string | null) {
+  if (!plan) {
+    return "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20"
+  }
   switch (plan.toLowerCase()) {
     case "growth":
       return "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
     case "scale":
       return "bg-purple-500/10 text-purple-500 hover:bg-purple-500/20"
     case "care":
-    default:
       return "bg-zinc-500/10 text-zinc-500 hover:bg-zinc-500/20"
+    default:
+      return "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20"
   }
+}
+
+function getPlanLabel(plan: string | null) {
+  if (!plan) {
+    return "Ingen plan"
+  }
+  return plan.charAt(0).toUpperCase() + plan.slice(1)
 }
 
 function getStatusColor(status: string) {
@@ -75,7 +86,7 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline" className={getPlanColor(organization.subscription_plan)}>
-              {organization.subscription_plan.charAt(0).toUpperCase() + organization.subscription_plan.slice(1)}
+              {getPlanLabel(organization.subscription_plan)}
             </Badge>
             <Badge variant="outline" className={getStatusColor(organization.status)}>
               {organization.status.charAt(0).toUpperCase() + organization.status.slice(1)}

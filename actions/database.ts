@@ -36,7 +36,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const pilotOrgs = organizations?.filter((org) => org.status === "pilot") || []
 
   const total_mrr = activeOrgs.reduce((sum, org) => {
-    return sum + PLAN_PRICING[org.subscription_plan as keyof typeof PLAN_PRICING]
+    // Only count organizations that have a subscription plan
+    if (!org.subscription_plan) return sum
+    return sum + (PLAN_PRICING[org.subscription_plan as keyof typeof PLAN_PRICING] || 0)
   }, 0)
 
   // Get total credits output (negative transactions = usage)
@@ -249,7 +251,7 @@ export async function addTransaction(
 const createOrganizationSchema = z.object({
   name: z.string().min(1, "Organisationsnamn krävs").max(255),
   org_nr: z.string().optional(),
-  subscription_plan: z.enum(["care", "growth", "scale"]),
+  subscription_plan: z.enum(["care", "growth", "scale"]).nullable(),
   status: z.enum(["pilot", "active", "churned"]),
 })
 
@@ -321,7 +323,7 @@ const updateOrganizationSchema = z.object({
   id: z.string().uuid("Ogiltigt organisations-ID"),
   name: z.string().min(1, "Organisationsnamn krävs").max(255),
   org_nr: z.string().optional(),
-  subscription_plan: z.enum(["care", "growth", "scale"]),
+  subscription_plan: z.enum(["care", "growth", "scale"]).nullable(),
   status: z.enum(["pilot", "active", "churned"]),
 })
 

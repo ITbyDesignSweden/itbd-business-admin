@@ -1,47 +1,46 @@
 # Supabase Migrations
 
-Denna mapp innehåller SQL-migrations för ITBD Admin Portal.
+Detta är migrationsfiler för IT by Design Admin Portal.
 
-## Hur man kör migrations
+## Hur man kör migrationer
 
-### Via Supabase Dashboard (Rekommenderat)
-1. Gå till [Supabase Dashboard](https://supabase.com/dashboard)
-2. Välj ditt projekt
-3. Navigera till **SQL Editor** i vänstermenyn
-4. Öppna filen du vill köra
-5. Kopiera innehållet och klistra in i SQL Editor
-6. Klicka på **Run** för att exekvera
+### 1. Kör SQL-migrationer i Supabase Dashboard
 
-### Via Supabase CLI (Avancerat)
-```bash
-supabase db push
-```
+1. Gå till din Supabase-projekt: https://supabase.com/dashboard
+2. Navigera till **SQL Editor**
+3. **Aktiva migrationer** (dessa används):
+   - `add_project_fk_to_credit_ledger.sql` - Foreign key constraint
+   - `create_organizations_with_credits_view.sql` - VIEW för credits
+   - `setup_pilot_storage.sql` - Storage bucket för filuppladdning
+   
+4. **Automatiskt körda via MCP** (redan implementerade):
+   - RLS policies för pilot_requests ✅
+   - Edge Function deployment ✅
 
-## Migrations i ordning
+### 2. Pilot Requests Implementation
 
-### 1. `create_organizations_with_credits_view.sql`
-**Syfte:** Optimering av databas-queries  
-**Vad den gör:**
-- Skapar en PostgreSQL VIEW `organizations_with_credits`
-- Eliminerar N+1 query-problem när vi listar organisationer
-- Kombinerar organizations med aggregerat kreditsaldo i en enda query
-
-**Performance-vinst:**
-- Före: 1 query + N queries (där N = antal organisationer)
-- Efter: 1 query totalt
-- Exempel: 100 organisationer = 101 queries → 1 query (100x snabbare!)
+**Arkitektur:**
+- Public form (`/apply`) → Edge Function (`submit-pilot-request`) → Database (med RLS)
+- Admin dashboard (`/pilot-requests`) → Direct database access (autentiserad)
 
 **Säkerhet:**
-- Viewn respekterar samma RLS-policies som base-tabellerna
-- Endast authenticated users har SELECT-access
+- ✅ RLS aktiverad på `pilot_requests`
+- ✅ Edge Function hanterar publika submissions (via service_role)
+- ✅ Storage bucket `pilot-uploads` skyddad (endast admins kan läsa filer)
 
-**Kör denna migration om:**
-- Du märker att Organizations-sidan laddar långsamt
-- Du har 100+ organisationer
-- Du vill optimera din databasanvändning
+## Verifiering
 
-**Test efter migration:**
-1. Gå till `/organizations` i din app
-2. Öppna Network tab i DevTools
-3. Verifiera att endast EN Supabase-query körs (istället för många)
+För att verifiera att allt fungerar:
 
+1. **Testa publika formuläret:** Gå till `/apply` och skicka en ansökan med en fil
+2. **Testa admin-vyn:** Logga in och gå till `/pilot-requests` för att se ansökan och ladda ner filen
+
+## Filvalidering
+
+Formuläret validerar följande:
+- **Max filstorlek:** 10MB
+- **Tillåtna filtyper:**
+  - PDF (`.pdf`)
+  - Word (`.doc`, `.docx`)
+  - Excel (`.xls`, `.xlsx`)
+  - Bilder (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`)
