@@ -24,6 +24,17 @@
     - Input: Antal krediter, Beskrivning (t.ex. "Faktura 1024").
     - Server Action: `addTransaction` (Insert till `credit_ledger`).
 
+### Feature C: Redigering & Justeringar (Quality of Life)
+*Nu när vi kan skapa data, måste vi kunna ändra och korrigera den.*
+
+- [ ] **Edit Organization Feature (Vertical Slice):**
+    - Implementera hela flödet för att redigera en organisation.
+    - **Backend:** Skapa Server Action `updateOrganization`.
+    - **Frontend:** Lägg till "Redigera"-knapp på detaljsidan som öppnar en Dialog där man kan ändra Namn, Org.nr och Status.
+- [ ] **Credit Correction (Vertical Slice):**
+    - Uppdatera "Top-up"-modalen och `addTransaction`-actionen för att tillåta **negativa värden**.
+    - Detta möjliggör korrigeringar (t.ex. -10 krediter) utan att vi behöver ta bort rader i databasen.
+
 ## 📝 Att göra (Backlog)
 - [ ] Settings-sida (Hantera min egen admin-profil).
 - [ ] Projekt-vy (Se kundernas beställningar).

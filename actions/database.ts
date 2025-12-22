@@ -265,3 +265,68 @@ export async function createOrganization(
   }
 }
 
+// Validation schema for updating organization
+const updateOrganizationSchema = z.object({
+  id: z.string().uuid("Ogiltigt organisations-ID"),
+  name: z.string().min(1, "Organisationsnamn krävs").max(255),
+  org_nr: z.string().optional(),
+  subscription_plan: z.enum(["care", "growth", "scale"]),
+  status: z.enum(["pilot", "active", "churned"]),
+})
+
+export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>
+
+export async function updateOrganization(
+  input: UpdateOrganizationInput
+): Promise<{ success: boolean; error?: string; data?: Organization }> {
+  try {
+    // Validate input
+    const validatedData = updateOrganizationSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Update organization
+    const { data, error } = await supabase
+      .from("organizations")
+      .update({
+        name: validatedData.name,
+        org_nr: validatedData.org_nr || null,
+        subscription_plan: validatedData.subscription_plan,
+        status: validatedData.status,
+      })
+      .eq("id", validatedData.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error updating organization:", error)
+      return {
+        success: false,
+        error: "Kunde inte uppdatera organisation. Försök igen.",
+      }
+    }
+
+    // Revalidate both organization detail page and dashboard
+    revalidatePath(`/organizations/${validatedData.id}`)
+    revalidatePath("/")
+
+    return {
+      success: true,
+      data: data as Organization,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+

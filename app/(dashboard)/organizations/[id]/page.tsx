@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getOrganizationById, getCreditLedgerByOrgId } from "@/actions/database"
 import { CreditLedgerTable } from "@/components/credit-ledger-table"
 import { TopUpCreditsDialog } from "@/components/top-up-credits-dialog"
+import { EditOrganizationDialog } from "@/components/edit-organization-dialog"
 
 interface OrganizationPageProps {
   params: Promise<{
@@ -65,11 +66,9 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
       {/* Organization Header */}
       <div className="space-y-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
+          <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight">{organization.name}</h1>
-            {organization.org_nr && (
-              <p className="text-muted-foreground">Org.nr: {organization.org_nr}</p>
-            )}
+            <EditOrganizationDialog organization={organization} />
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline" className={getPlanColor(organization.subscription_plan)}>
@@ -80,6 +79,9 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
             </Badge>
           </div>
         </div>
+        {organization.org_nr && (
+          <p className="text-muted-foreground">Org.nr: {organization.org_nr}</p>
+        )}
 
         {/* Credit Balance Card */}
         <Card>
