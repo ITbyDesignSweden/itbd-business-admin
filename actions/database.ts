@@ -92,6 +92,39 @@ export async function getOrganizationsWithCredits(): Promise<OrganizationWithCre
   return orgsWithCredits
 }
 
+export async function getOrganizationById(id: string): Promise<OrganizationWithCredits | null> {
+  const supabase = await createClient()
+
+  // Get organization by ID
+  const { data: organization, error } = await supabase
+    .from("organizations")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (error) {
+    console.error("Error fetching organization:", error)
+    return null
+  }
+
+  if (!organization) {
+    return null
+  }
+
+  // Get credit balance for this organization
+  const { data: credits } = await supabase
+    .from("credit_ledger")
+    .select("amount")
+    .eq("org_id", organization.id)
+
+  const total_credits = credits?.reduce((sum, entry) => sum + entry.amount, 0) || 0
+
+  return {
+    ...organization,
+    total_credits,
+  }
+}
+
 // Validation schema for creating organization
 const createOrganizationSchema = z.object({
   name: z.string().min(1, "Organisationsnamn krävs").max(255),

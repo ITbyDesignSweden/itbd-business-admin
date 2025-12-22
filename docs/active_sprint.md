@@ -18,7 +18,7 @@
 - [x] Implementera "Toast"-notifikationer för success/error (använd `sonner` eller `use-toast`).
 
 ### Feature B: Organisations-detaljer & Krediter
-- [ ] Skapa dynamisk route: `app/(dashboard)/organizations/[id]/page.tsx`.
+- [x] Skapa dynamisk route: `app/(dashboard)/organizations/[id]/page.tsx`.
 - [ ] På detaljsidan: Visa kundens info och en lista på deras transaktioner (Credit Ledger).
 - [ ] Skapa funktion: "Top-up Credits" (Knapp som öppnar modal).
     - Input: Antal krediter, Beskrivning (t.ex. "Faktura 1024").

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -39,10 +40,15 @@ function getStatusColor(status: string) {
 
 export function OrganizationsTable({ organizations }: OrganizationsTableProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter()
 
   const filteredOrganizations = organizations.filter((org) =>
     org.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const handleRowClick = (orgId: string) => {
+    router.push(`/organizations/${orgId}`)
+  }
 
   return (
     <Card>
@@ -78,7 +84,11 @@ export function OrganizationsTable({ organizations }: OrganizationsTableProps) {
               </TableRow>
             ) : (
               filteredOrganizations.map((org) => (
-                <TableRow key={org.id}>
+                <TableRow 
+                  key={org.id}
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => handleRowClick(org.id)}
+                >
                   <TableCell className="font-medium">{org.name}</TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">
                     {org.org_nr || "—"}
