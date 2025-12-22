@@ -1,6 +1,8 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
 import type { Organization, DashboardStats, OrganizationWithCredits } from "@/lib/types/database"
 
 // Plan pricing in SEK
@@ -88,5 +90,67 @@ export async function getOrganizationsWithCredits(): Promise<OrganizationWithCre
   )
 
   return orgsWithCredits
+}
+
+// Validation schema for creating organization
+const createOrganizationSchema = z.object({
+  name: z.string().min(1, "Organisationsnamn krävs").max(255),
+  org_nr: z.string().optional(),
+  subscription_plan: z.enum(["care", "growth", "scale"]),
+  status: z.enum(["pilot", "active", "churned"]),
+})
+
+export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>
+
+export async function createOrganization(
+  input: CreateOrganizationInput
+): Promise<{ success: boolean; error?: string; data?: Organization }> {
+  try {
+    // Validate input
+    const validatedData = createOrganizationSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Insert organization
+    const { data, error } = await supabase
+      .from("organizations")
+      .insert({
+        name: validatedData.name,
+        org_nr: validatedData.org_nr || null,
+        subscription_plan: validatedData.subscription_plan,
+        status: validatedData.status,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error creating organization:", error)
+      return {
+        success: false,
+        error: "Kunde inte skapa organisation. Försök igen.",
+      }
+    }
+
+    // Revalidate dashboard to show new organization
+    revalidatePath("/")
+
+    return {
+      success: true,
+      data: data as Organization,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
 }
 
