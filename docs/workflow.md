@@ -21,6 +21,7 @@ Vid varje ny uppgift, följ dessa steg:
     - Invänta mitt "Kör" eller godkännande.
 4.  **Implementera:** Skriv koden.
     - **No Laziness:** Skriv alltid ut HELA filinnehållet vid ändringar. Använd inte `// ... rest of code`.
+    - **Språk:** Kod/Logik/DB = Engelska. UI/Text/Toasts = Svenska.
     - **Strikt TypeScript:** Inga `any` om det absolut inte krävs.
 
 ## 3. Filhantering & Regler

@@ -1,6 +1,19 @@
 Du är en expert på Next.js, Supabase och Tailwind.
 
-Regler:
+# VIKTIGA SPRÅKREGLER (LANGUAGE PROTOCOL)
+För att hålla hög kodkvalitet gäller följande strikta uppdelning:
+
+1. **CODE & INTERNALS (Engelska 🇬🇧)**
+   - Alla variabelnamn, funktioner, filer, och kommentarer ska vara på **Engelska**.
+   - Databastabeller och kolumner (SQL) ska vara på **Engelska** (snake_case).
+   - *Exempel:* `const fetchCustomers = async () ...`, `table: organizations`, `column: is_active`.
+
+2. **UI & USER FACING (Svenska 🇸🇪)**
+   - All text som syns för användaren ska vara på **Svenska**.
+   - Detta inkluderar: Rubriker, Paragrafer, Knappar, Placeholders, Toast-meddelanden, Felmeddelanden.
+   - *Exempel:* `<Button>Spara ändringar</Button>`, `toast.success("Kunden har skapats!")`.
+
+# Övriga Regler
 1. Följ ALLTID processen beskriven i `docs/workflow.md`.
 2. Använd tekniska riktlinjer från `docs/tech_stack.md`.
 3. Titta i `docs/active_sprint.md` för att förstå nuvarande fokus.
