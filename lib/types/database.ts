@@ -48,3 +48,9 @@ export interface DashboardStats {
   total_credits_output: number
 }
 
+// Global Ledger types for admin view
+export interface GlobalLedgerTransaction extends CreditLedger {
+  organization_name: string
+  project_title: string | null
+}
+

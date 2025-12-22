@@ -23,7 +23,7 @@ create table public.credit_ledger (
   org_id uuid references public.organizations(id) not null,
   amount integer not null, -- Positivt = Köp, Negativt = Förbrukning
   description text not null,
-  project_id uuid
+  project_id uuid references public.projects(id) on delete set null
 );
 
 -- 4. Projects (Beställningar)

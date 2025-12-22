@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import type { Organization, DashboardStats, OrganizationWithCredits, CreditLedger, Project } from "@/lib/types/database"
+import type { Organization, DashboardStats, OrganizationWithCredits, CreditLedger, Project, GlobalLedgerTransaction } from "@/lib/types/database"
 
 // Plan pricing in SEK
 const PLAN_PRICING = {
@@ -579,3 +579,37 @@ export async function deleteProject(
   }
 }
 
+export async function getAllTransactions(): Promise<GlobalLedgerTransaction[]> {
+  const supabase = await createClient()
+
+  // Fetch all transactions with organization and project information
+  // Using Supabase join for optimal performance (single query)
+  // Now works thanks to foreign key constraint between credit_ledger.project_id and projects.id
+  const { data: transactions, error } = await supabase
+    .from("credit_ledger")
+    .select(`
+      *,
+      organizations!inner(name),
+      projects(title)
+    `)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching all transactions:", error)
+    return []
+  }
+
+  // Transform the joined data to match GlobalLedgerTransaction type
+  const globalTransactions: GlobalLedgerTransaction[] = (transactions || []).map((tx: any) => ({
+    id: tx.id,
+    created_at: tx.created_at,
+    org_id: tx.org_id,
+    amount: tx.amount,
+    description: tx.description,
+    project_id: tx.project_id,
+    organization_name: tx.organizations?.name || "Okänd organisation",
+    project_title: tx.projects?.title || null,
+  }))
+
+  return globalTransactions
+}

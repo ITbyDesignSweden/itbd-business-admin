@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Wallet, Inbox, Settings, LogOut } from "lucide-react"
+import { LayoutDashboard, Users, Receipt, Inbox, Settings, LogOut } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -11,7 +11,7 @@ import { logout } from "@/actions/auth"
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/organizations", label: "Organizations", icon: Users },
-  { href: "/credit-ledger", label: "Credit Ledger", icon: Wallet },
+  { href: "/ledger", label: "Ledger", icon: Receipt },
   { href: "/pilot-requests", label: "Pilot Requests", icon: Inbox },
   { href: "/settings", label: "Settings", icon: Settings },
 ]

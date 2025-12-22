@@ -22,12 +22,12 @@
 ### Feature G: Global Ledger Page (`/ledger`)
 *Revisorns favoritvy. En lista på ALLA transaktioner i hela systemet.*
 
-- [ ] **Skapa sidan:** `app/(dashboard)/ledger/page.tsx`.
-- [ ] **Server Action:** Skapa `getAllTransactions()` i `actions/database.ts` (måste joina `organizations` för att visa kundnamn).
-- [ ] **UI - Global Table:**
+- [x] **Skapa sidan:** `app/(dashboard)/ledger/page.tsx`.
+- [x] **Server Action:** Skapa `getAllTransactions()` i `actions/database.ts` (måste joina `organizations` för att visa kundnamn).
+- [x] **UI - Global Table:**
     - Skapa `components/global-ledger-table.tsx`.
     - Kolumner: Datum, Kund (Länk till org), Projekt (Länk), Beskrivning, Belopp.
-- [ ] **Filter:** Enkel filtrering (t.ex. dropdown för att välja en specifik organisation).
+- [x] **Filter:** Enkel filtrering (t.ex. dropdown för att välja en specifik organisation).
 
 ## 📝 Att göra (Backlog)
 - [ ] **Pilot Requests:** Leadshantering (får vänta till nästa sprint).
