@@ -4,10 +4,12 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getOrganizationById, getCreditLedgerByOrgId } from "@/actions/database"
+import { getOrganizationById, getCreditLedgerByOrgId, getProjectsByOrgId } from "@/actions/database"
 import { CreditLedgerTable } from "@/components/credit-ledger-table"
 import { TopUpCreditsDialog } from "@/components/top-up-credits-dialog"
 import { EditOrganizationDialog } from "@/components/edit-organization-dialog"
+import { ProjectsTable } from "@/components/projects-table"
+import { CreateProjectDialog } from "@/components/create-project-dialog"
 
 interface OrganizationPageProps {
   params: Promise<{
@@ -48,8 +50,9 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
     notFound()
   }
 
-  // Fetch credit transactions for this organization
+  // Fetch credit transactions and projects for this organization
   const transactions = await getCreditLedgerByOrgId(id)
+  const projects = await getProjectsByOrgId(id)
 
   return (
     <div className="space-y-6">
@@ -96,14 +99,25 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
         </Card>
       </div>
 
+      {/* Projects Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle>Projekt</CardTitle>
+          <CreateProjectDialog orgId={organization.id} orgName={organization.name} />
+        </CardHeader>
+        <CardContent>
+          <ProjectsTable projects={projects} />
+        </CardContent>
+      </Card>
+
       {/* Transaction History */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Transaktionshistorik</CardTitle>
-          <TopUpCreditsDialog orgId={organization.id} orgName={organization.name} />
+          <TopUpCreditsDialog orgId={organization.id} orgName={organization.name} projects={projects} />
         </CardHeader>
         <CardContent>
-          <CreditLedgerTable transactions={transactions} />
+          <CreditLedgerTable transactions={transactions} projects={projects} />
         </CardContent>
       </Card>
     </div>

@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import type { Organization, DashboardStats, OrganizationWithCredits, CreditLedger } from "@/lib/types/database"
+import type { Organization, DashboardStats, OrganizationWithCredits, CreditLedger, Project } from "@/lib/types/database"
 
 // Plan pricing in SEK
 const PLAN_PRICING = {
@@ -142,11 +142,29 @@ export async function getCreditLedgerByOrgId(orgId: string): Promise<CreditLedge
   return transactions || []
 }
 
+export async function getProjectsByOrgId(orgId: string): Promise<Project[]> {
+  const supabase = await createClient()
+
+  const { data: projects, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching projects:", error)
+    return []
+  }
+
+  return projects || []
+}
+
 // Validation schema for adding transaction
 const addTransactionSchema = z.object({
   orgId: z.string().uuid("Ogiltigt organisations-ID"),
   amount: z.number().int("Antal krediter måste vara ett heltal"),
   description: z.string().min(1, "Beskrivning krävs").max(255, "Beskrivningen är för lång"),
+  projectId: z.string().uuid("Ogiltigt projekt-ID").optional().nullable(),
 })
 
 export type AddTransactionInput = z.infer<typeof addTransactionSchema>
@@ -183,7 +201,7 @@ export async function addTransaction(
         org_id: validatedData.orgId,
         amount: validatedData.amount,
         description: validatedData.description,
-        project_id: null,
+        project_id: validatedData.projectId || null,
       })
       .select()
       .single()
@@ -329,6 +347,67 @@ export async function updateOrganization(
     return {
       success: true,
       data: data as Organization,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+
+// Validation schema for creating project
+const createProjectSchema = z.object({
+  orgId: z.string().uuid("Ogiltigt organisations-ID"),
+  title: z.string().min(1, "Projekttitel krävs").max(255, "Titeln är för lång"),
+  status: z.enum(["backlog", "in_progress", "completed", "cancelled"]),
+})
+
+export type CreateProjectInput = z.infer<typeof createProjectSchema>
+
+export async function createProject(
+  input: CreateProjectInput
+): Promise<{ success: boolean; error?: string; data?: Project }> {
+  try {
+    // Validate input
+    const validatedData = createProjectSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Insert project
+    const { data, error } = await supabase
+      .from("projects")
+      .insert({
+        org_id: validatedData.orgId,
+        title: validatedData.title,
+        status: validatedData.status,
+        cost_credits: 0,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error creating project:", error)
+      return {
+        success: false,
+        error: "Kunde inte skapa projekt. Försök igen.",
+      }
+    }
+
+    // Revalidate organization page to show new project
+    revalidatePath(`/organizations/${validatedData.orgId}`)
+
+    return {
+      success: true,
+      data: data as Project,
     }
   } catch (error) {
     if (error instanceof z.ZodError) {

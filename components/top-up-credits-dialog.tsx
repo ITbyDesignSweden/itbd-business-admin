@@ -26,7 +26,15 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { addTransaction } from "@/actions/database"
+import type { Project } from "@/lib/types/database"
 
 const formSchema = z.object({
   amount: z.coerce
@@ -36,6 +44,7 @@ const formSchema = z.object({
     })
     .int("Antal krediter måste vara ett heltal"),
   description: z.string().min(1, "Beskrivning krävs").max(255, "Beskrivningen är för lång"),
+  projectId: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -43,9 +52,10 @@ type FormValues = z.infer<typeof formSchema>
 interface TopUpCreditsDialogProps {
   orgId: string
   orgName: string
+  projects?: Project[]
 }
 
-export function TopUpCreditsDialog({ orgId, orgName }: TopUpCreditsDialogProps) {
+export function TopUpCreditsDialog({ orgId, orgName, projects = [] }: TopUpCreditsDialogProps) {
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
@@ -54,6 +64,7 @@ export function TopUpCreditsDialog({ orgId, orgName }: TopUpCreditsDialogProps) 
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
+      projectId: "",
     },
   })
 
@@ -65,6 +76,7 @@ export function TopUpCreditsDialog({ orgId, orgName }: TopUpCreditsDialogProps) 
         orgId,
         amount: values.amount,
         description: values.description,
+        projectId: values.projectId || null,
       })
 
       if (result.success) {
@@ -175,6 +187,35 @@ export function TopUpCreditsDialog({ orgId, orgName }: TopUpCreditsDialogProps) 
                 </FormItem>
               )}
             />
+            {projects.length > 0 && (
+              <FormField
+                control={form.control}
+                name="projectId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Projekt (valfritt)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Välj projekt (eller lämna tomt)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Koppla transaktionen till ett projekt för bättre spårning
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <DialogFooter>
               <Button
                 type="button"

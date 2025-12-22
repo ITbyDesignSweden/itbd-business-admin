@@ -4,13 +4,21 @@ import { format } from "date-fns"
 import { sv } from "date-fns/locale"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import type { CreditLedger } from "@/lib/types/database"
+import type { CreditLedger, Project } from "@/lib/types/database"
 
 interface CreditLedgerTableProps {
   transactions: CreditLedger[]
+  projects?: Project[]
 }
 
-export function CreditLedgerTable({ transactions }: CreditLedgerTableProps) {
+export function CreditLedgerTable({ transactions, projects = [] }: CreditLedgerTableProps) {
+  // Helper function to get project name by ID
+  const getProjectName = (projectId: string | null): string | null => {
+    if (!projectId) return null
+    const project = projects.find((p) => p.id === projectId)
+    return project?.title || null
+  }
+
   // Calculate running balance for each transaction
   const transactionsWithBalance = transactions.map((transaction, index) => {
     // Since transactions are sorted newest first, we need to calculate from the end
@@ -57,8 +65,15 @@ export function CreditLedgerTable({ transactions }: CreditLedgerTableProps) {
                 <TableCell className="text-muted-foreground text-sm">
                   {formattedDate}
                 </TableCell>
-                <TableCell className="font-medium">
-                  {transaction.description}
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium">{transaction.description}</span>
+                    {transaction.project_id && (
+                      <span className="text-xs text-muted-foreground">
+                        Projekt: {getProjectName(transaction.project_id) || "Okänt projekt"}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <Badge 

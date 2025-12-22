@@ -1,44 +1,38 @@
-# Active Sprint: Admin Portal - Operations & Management
+# Active Sprint: Admin Portal - Business Core & Security
 
-**Status:** Uppstart
-**Mål:** Göra portalen interaktiv. Jag ska kunna lägga till kunder och hantera krediter direkt från UI:t.
+**Status:** Planering
+**Mål:** Implementera projekt-hantering för att kunna logga arbete mot krediter, samt säkra applikationen.
 
 ## ✅ Klart (Done)
-- [x] Grundstruktur (Next.js, Tailwind, Supabase).
-- [x] Auth-flöde (Login/Logout).
-- [x] Dashboard "Read-Only" vy (KPI:er och tabell med riktig data).
-- [x] Databasschema och Types.
+- [x] Core: Next.js + Supabase + Auth.
+- [x] Org Management: Create, Read, Update.
+- [x] Credit System: Saldo, Transaktioner & Justeringar (Top-up).
 
 ## 🚧 Pågående (Current Context)
 
-### Feature A: Hantera Organisationer (CRUD)
-- [x] Skapa en "Add Organization"-knapp i Dashboarden.
-- [x] Bygga en Modal (Dialog) eller separat sida `/organizations/new` för att skapa kund.
-- [x] Skapa Server Action `createOrganization` (Ska hantera inserts i `organizations`-tabellen).
-- [x] Implementera "Toast"-notifikationer för success/error (använd `sonner` eller `use-toast`).
+### Feature D: Projects Management (The Work)
+*Vi måste kunna skapa projekt (beställningar) för att veta vad krediterna används till.*
 
-### Feature B: Organisations-detaljer & Krediter
-- [x] Skapa dynamisk route: `app/(dashboard)/organizations/[id]/page.tsx`.
-- [x] På detaljsidan: Visa kundens info och en lista på deras transaktioner (Credit Ledger).
-- [x] Skapa funktion: "Top-up Credits" (Knapp som öppnar modal).
-    - Input: Antal krediter, Beskrivning (t.ex. "Faktura 1024").
-    - Server Action: `addTransaction` (Insert till `credit_ledger`).
+- [x] **Projects List (Org Detail):**
+    - På sidan `/organizations/[id]`: Lägg till en flik eller sektion för "Projects".
+    - Visa lista på projekt med: Titel, Status (Backlog/Active/Done), Kostnad (Credits).
+- [x] **Create Project Action:**
+    - Skapa Server Action `createProject`.
+    - UI: Knapp "New Project" som öppnar en Modal (Titel, Status).
+- [x] **Link Credits to Projects:**
+    - Uppdatera "Top-up/Spend"-modalen så man kan välja ett Projekt (valfritt).
+    - Uppdatera `addTransaction` så att `project_id` sparas i `credit_ledger`.
+    - *Resultat:* Vi kan se exakt vad krediter dragits för.
 
-### Feature C: Redigering & Justeringar (Quality of Life)
-*Nu när vi kan skapa data, måste vi kunna ändra och korrigera den.*
+### Feature E: Security & Hardening (Tech Debt)
+*Nu säkrar vi datan innan vi växer.*
 
-- [x] **Edit Organization Feature (Vertical Slice):**
-    - Implementera hela flödet för att redigera en organisation.
-    - **Backend:** Skapa Server Action `updateOrganization`.
-    - **Frontend:** Lägg till "Redigera"-knapp på detaljsidan som öppnar en Dialog där man kan ändra Namn, Org.nr och Status.
-- [x] **Credit Correction (Vertical Slice):**
-    - Uppdatera "Top-up"-modalen och `addTransaction`-actionen för att tillåta **negativa värden**.
-    - Detta möjliggör korrigeringar (t.ex. -10 krediter) utan att vi behöver ta bort rader i databasen.
+- [ ] **RLS Audit:**
+    - Uppdatera Supabase Policies. Ändra från `authenticated` till att specifikt kräva rollen `admin` i `profiles`-tabellen.
+    - Detta skyddar mot att framtida "vanliga" användare (kunder) kan nå admin-data.
+- [ ] **Data Integrity:**
+    - Lägg till unikt index på `organizations.org_nr` (så vi inte får dubbletter).
 
-## 📝 Att göra (Backlog)
-- [ ] Settings-sida (Hantera min egen admin-profil).
-- [ ] Projekt-vy (Se kundernas beställningar).
-- [ ] Sök/Filtrering på Dashboarden (Server-side search).
-
-## 🐞 Buggar / Tech Debt
-- [ ] Kontrollera att RLS-policies tillåter INSERT för admin-användaren.
+## 📝 Att göra (Backlog - Next Up)
+- [ ] **Global Ledger (`/ledger`):** Totalekonomi-vy.
+- [ ] **Pilot Requests:** Leadshantering.
