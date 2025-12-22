@@ -4,7 +4,8 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getOrganizationById } from "@/actions/database"
+import { getOrganizationById, getCreditLedgerByOrgId } from "@/actions/database"
+import { CreditLedgerTable } from "@/components/credit-ledger-table"
 
 interface OrganizationPageProps {
   params: Promise<{
@@ -44,6 +45,9 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
   if (!organization) {
     notFound()
   }
+
+  // Fetch credit transactions for this organization
+  const transactions = await getCreditLedgerByOrgId(id)
 
   return (
     <div className="space-y-6">
@@ -89,15 +93,13 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
         </Card>
       </div>
 
-      {/* Transaction History Placeholder */}
+      {/* Transaction History */}
       <Card>
         <CardHeader>
           <CardTitle>Transaktionshistorik</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8 text-muted-foreground">
-            <p>Transaktionshistorik kommer här i nästa steg</p>
-          </div>
+          <CreditLedgerTable transactions={transactions} />
         </CardContent>
       </Card>
     </div>

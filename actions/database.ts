@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import type { Organization, DashboardStats, OrganizationWithCredits } from "@/lib/types/database"
+import type { Organization, DashboardStats, OrganizationWithCredits, CreditLedger } from "@/lib/types/database"
 
 // Plan pricing in SEK
 const PLAN_PRICING = {
@@ -123,6 +123,23 @@ export async function getOrganizationById(id: string): Promise<OrganizationWithC
     ...organization,
     total_credits,
   }
+}
+
+export async function getCreditLedgerByOrgId(orgId: string): Promise<CreditLedger[]> {
+  const supabase = await createClient()
+
+  const { data: transactions, error } = await supabase
+    .from("credit_ledger")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching credit ledger:", error)
+    return []
+  }
+
+  return transactions || []
 }
 
 // Validation schema for creating organization
