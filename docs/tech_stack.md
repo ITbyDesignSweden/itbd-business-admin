@@ -4,7 +4,7 @@ Detta dokument definierar den tekniska stacken och kodreglerna för IT by Design
 AI-agenter (Cursor/Claude) SKA följa dessa regler strikt.
 
 ## 1. Core Framework
-- **Framework:** Next.js 14+ (App Router).
+- **Framework:** Next.js 16+ (App Router).
 - **Language:** TypeScript.
 - **Hosting:** Vercel.
 - **Environment:** Node.js (Latest LTS).
@@ -54,3 +54,4 @@ AI-agenter (Cursor/Claude) SKA följa dessa regler strikt.
   /supabase         # client.ts, server.ts, middleware.ts
   utils.ts          # Helper functions
 /actions            # Server Actions (auth.ts, database.ts)
+/proxy.ts           # Next.js 16+ proxy (auth & request handling)
