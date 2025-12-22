@@ -4,42 +4,32 @@ Detta är bruttolistan över funktioner vi planerar att bygga.
 När vi är redo att bygga en feature, flyttar vi den till `active_sprint.md`.
 
 ## 🚀 High Priority (Nästa Sprint)
-*Dessa är kritiska för att systemet ska vara körbart.*
+*Dessa är kritiska för att systemet ska vara komplett.*
 
-- [x] **Organizations Detail Page (`/organizations/[id]`)**
-    - Se detaljerad info om kund.
-    - Se lista på användare kopplade till org.
-- [x] **Credit Ledger Page (`/ledger`)**
-    - En central vy för ALLA transaktioner i hela systemet.
-    - Filtrering på datum och organisation.
-- [ ] **Pilot Requests (`/pilot-requests`)**
-    - Hantera inkommande förfrågningar från hemsidan.
-    - Knapp för "Approve" -> Skapar automatiskt en Organization och skickar email.
+- [ ] **Email Integration (Onboarding)**
+    - Skicka inbjudningslänk till kunden automatiskt när man godkänner en Pilot Request.
+- [ ] **Search & Filters**
+    - Global sök i headern (Hitta kund snabbt på Org.nr eller Namn).
 
 ## 🔮 Medium Priority (Snart)
 *Viktiga funktioner för daglig drift.*
 
-- [ ] **Projects Management**
-    - Kunna skapa projekt åt kunder (t.ex. "Integration Fortnox").
-    - Logga tid/krediter mot projekt.
-- [ ] **Settings / Admin Profile**
-    - Byta lösenord.
-    - Hantera andra admin-användare (Multi-tenant support).
-- [ ] **Search & Filters**
-    - Global sök i headern (Hitta kund snabbt på Org.nr eller Namn).
+- [ ] **Export Functions**
+    - Exportera fakturaunderlag till CSV/Excel för bokföring.
+- [ ] **Multi-tenant Admin Support**
+    - Bjuda in fler administratörer till portalen.
 
 ## 🧊 Icebox / Future Ideas (Senare)
 *Bra idéer ("Nice to have") som vi tar när grunden sitter.*
 
 - [ ] **Notifications System**
     - Notis när en kunds krediter understiger 10p.
-    - Notis vid ny Pilot Request.
-- [ ] **Export Functions**
-    - Exportera fakturaunderlag till CSV/Excel för bokföring.
 - [ ] **Analytics Dashboard**
-    - Grafer över kreditanvändning per månad (Churn warning).
-    - MRR-utveckling över tid.
+    - Grafer över kreditanvändning och MRR.
+- [ ] **Customer Portal Boilerplate**
+    - Bygga mallen för kundens egen app (se `docs/boilerplate_wishlist.md`).
 
- ## 🔧 Tech Debt & Hardening
-- [ ] **RLS Security:** Strama åt policies så att bara användare med rollen 'admin' får göra INSERT/UPDATE (just nu är det 'authenticated').
-- [ ] **Data Integrity:** Lägg till unik constraint på `org_nr` i databasen för att förhindra dubbletter.
+## ✅ Nyligen Slutfört
+- [x] Projects Management
+- [x] Credit Ledger Page (`/ledger`)
+- [x] Organizations Detail Page
