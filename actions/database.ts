@@ -61,8 +61,9 @@ export async function getOrganizationsWithCredits(): Promise<OrganizationWithCre
   const supabase = await createClient()
 
   // Get recent organizations with their credit balance (for Dashboard)
+  // Uses PostgreSQL VIEW for optimal performance (single query instead of N+1)
   const { data: organizations, error } = await supabase
-    .from("organizations")
+    .from("organizations_with_credits")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(5)
@@ -72,32 +73,16 @@ export async function getOrganizationsWithCredits(): Promise<OrganizationWithCre
     return []
   }
 
-  // For each organization, get their credit balance
-  const orgsWithCredits = await Promise.all(
-    (organizations || []).map(async (org) => {
-      const { data: credits } = await supabase
-        .from("credit_ledger")
-        .select("amount")
-        .eq("org_id", org.id)
-
-      const total_credits = credits?.reduce((sum, entry) => sum + entry.amount, 0) || 0
-
-      return {
-        ...org,
-        total_credits,
-      }
-    })
-  )
-
-  return orgsWithCredits
+  return organizations || []
 }
 
 export async function getAllOrganizationsWithCredits(): Promise<OrganizationWithCredits[]> {
   const supabase = await createClient()
 
   // Get all organizations with their credit balance (for Organizations index page)
+  // Uses PostgreSQL VIEW for optimal performance (single query instead of N+1)
   const { data: organizations, error } = await supabase
-    .from("organizations")
+    .from("organizations_with_credits")
     .select("*")
     .order("created_at", { ascending: false })
 
@@ -106,32 +91,16 @@ export async function getAllOrganizationsWithCredits(): Promise<OrganizationWith
     return []
   }
 
-  // For each organization, get their credit balance
-  const orgsWithCredits = await Promise.all(
-    (organizations || []).map(async (org) => {
-      const { data: credits } = await supabase
-        .from("credit_ledger")
-        .select("amount")
-        .eq("org_id", org.id)
-
-      const total_credits = credits?.reduce((sum, entry) => sum + entry.amount, 0) || 0
-
-      return {
-        ...org,
-        total_credits,
-      }
-    })
-  )
-
-  return orgsWithCredits
+  return organizations || []
 }
 
 export async function getOrganizationById(id: string): Promise<OrganizationWithCredits | null> {
   const supabase = await createClient()
 
-  // Get organization by ID
+  // Get organization by ID with credit balance
+  // Uses PostgreSQL VIEW for optimal performance (single query)
   const { data: organization, error } = await supabase
-    .from("organizations")
+    .from("organizations_with_credits")
     .select("*")
     .eq("id", id)
     .single()
@@ -141,22 +110,7 @@ export async function getOrganizationById(id: string): Promise<OrganizationWithC
     return null
   }
 
-  if (!organization) {
-    return null
-  }
-
-  // Get credit balance for this organization
-  const { data: credits } = await supabase
-    .from("credit_ledger")
-    .select("amount")
-    .eq("org_id", organization.id)
-
-  const total_credits = credits?.reduce((sum, entry) => sum + entry.amount, 0) || 0
-
-  return {
-    ...organization,
-    total_credits,
-  }
+  return organization || null
 }
 
 export async function getCreditLedgerByOrgId(orgId: string): Promise<CreditLedger[]> {
