@@ -506,3 +506,79 @@ export async function updateProject(
   }
 }
 
+// Validation schema for deleting project
+const deleteProjectSchema = z.object({
+  id: z.string().uuid("Ogiltigt projekt-ID"),
+  orgId: z.string().uuid("Ogiltigt organisations-ID"),
+})
+
+export type DeleteProjectInput = z.infer<typeof deleteProjectSchema>
+
+export async function deleteProject(
+  input: DeleteProjectInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Validate input
+    const validatedData = deleteProjectSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Check if project has any transactions in credit_ledger
+    const { data: transactions, error: transactionError } = await supabase
+      .from("credit_ledger")
+      .select("id")
+      .eq("project_id", validatedData.id)
+      .limit(1)
+
+    if (transactionError) {
+      console.error("Error checking transactions:", transactionError)
+      return {
+        success: false,
+        error: "Kunde inte kontrollera projektets transaktioner. Försök igen.",
+      }
+    }
+
+    // If transactions exist, prevent deletion
+    if (transactions && transactions.length > 0) {
+      return {
+        success: false,
+        error: "Kan ej radera projekt med ekonomisk historik. Sätt status till Cancelled istället.",
+      }
+    }
+
+    // No transactions found, safe to delete
+    const { error: deleteError } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", validatedData.id)
+
+    if (deleteError) {
+      console.error("Error deleting project:", deleteError)
+      return {
+        success: false,
+        error: "Kunde inte radera projekt. Försök igen.",
+      }
+    }
+
+    // Revalidate organization page to show project removed
+    revalidatePath(`/organizations/${validatedData.orgId}`)
+
+    return {
+      success: true,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+

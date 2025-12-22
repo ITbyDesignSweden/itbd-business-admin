@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Pencil } from "lucide-react"
+import { Pencil, Trash2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +16,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   Form,
   FormControl,
@@ -33,7 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { updateProject } from "@/actions/database"
+import { updateProject, deleteProject } from "@/actions/database"
 import type { Project } from "@/lib/types/database"
 
 const formSchema = z.object({
@@ -52,6 +63,7 @@ interface EditProjectDialogProps {
 export function EditProjectDialog({ project }: EditProjectDialogProps) {
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
 
   const form = useForm<FormValues>({
@@ -95,6 +107,40 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function handleDelete() {
+    setIsDeleting(true)
+
+    try {
+      const result = await deleteProject({
+        id: project.id,
+        orgId: project.org_id,
+      })
+
+      if (result.success) {
+        toast({
+          title: "Projekt raderat",
+          description: `"${project.title}" har tagits bort.`,
+        })
+        setOpen(false)
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Kunde inte radera projekt",
+          description: result.error || "Försök igen.",
+        })
+      }
+    } catch (error) {
+      console.error("Error deleting project:", error)
+      toast({
+        variant: "destructive",
+        title: "Något gick fel",
+        description: "Ett oväntat fel uppstod. Försök igen.",
+      })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -171,24 +217,64 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
                 </FormItem>
               )}
             />
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  form.reset({
-                    title: project.title,
-                    status: project.status,
-                  })
-                  setOpen(false)
-                }}
-                disabled={isSubmitting}
-              >
-                Avbryt
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Sparar..." : "Spara ändringar"}
-              </Button>
+            <DialogFooter className="sm:justify-between">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="gap-2"
+                    disabled={isSubmitting || isDeleting}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Ta bort
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Är du säker?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Detta kommer att radera projektet <span className="font-semibold">{project.title}</span> permanent.
+                      <br /><br />
+                      Om projektet har ekonomisk historik (transaktioner) så kommer det inte att kunna raderas.
+                      Sätt istället status till "Avbruten" för att dölja projektet.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>Avbryt</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleDelete()
+                      }}
+                      disabled={isDeleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isDeleting ? "Raderar..." : "Radera projekt"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    form.reset({
+                      title: project.title,
+                      status: project.status,
+                    })
+                    setOpen(false)
+                  }}
+                  disabled={isSubmitting || isDeleting}
+                >
+                  Avbryt
+                </Button>
+                <Button type="submit" disabled={isSubmitting || isDeleting}>
+                  {isSubmitting ? "Sparar..." : "Spara ändringar"}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </Form>

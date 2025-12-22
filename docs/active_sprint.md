@@ -30,7 +30,7 @@
     - Skapa `updateProject` Server Action.
     - Lägg till en "Redigera"-knapp (eller pen-ikon) i projekttabellen.
     - Möjliggör ändring av Titel och framförallt **Status** (så vi kan flytta projekt från "In Progress" -> "Done").
-- [ ] **Safe Delete:**
+- [x] **Safe Delete:**
     - Lägg till en "Ta bort"-knapp (gärna i Edit-dialogen med en "Är du säker?"-varning).
     - Skapa Server Action `deleteProject`.
     - **Logik:** Kontrollera först om det finns rader i `credit_ledger` kopplade till projektet.
