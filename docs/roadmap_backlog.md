@@ -6,13 +6,13 @@ När vi är redo att bygga en feature, flyttar vi den till `active_sprint.md`.
 ## 🚀 High Priority (Nästa Sprint)
 *Dessa är kritiska för att systemet ska vara körbart.*
 
-- [ ] **Organizations Detail Page (`/organizations/[id]`)**
+- [x] **Organizations Detail Page (`/organizations/[id]`)**
     - Se detaljerad info om kund.
     - Se lista på användare kopplade till org.
-- [ ] **Credit Ledger Page (`/ledger`)**
+- [x] **Credit Ledger Page (`/ledger`)**
     - En central vy för ALLA transaktioner i hela systemet.
     - Filtrering på datum och organisation.
-- [ ] **Pilot Requests (`/pilot-requests`)**
+- [x] **Pilot Requests (`/pilot-requests`)**
     - Hantera inkommande förfrågningar från hemsidan.
     - Knapp för "Approve" -> Skapar automatiskt en Organization och skickar email.
 
