@@ -20,14 +20,14 @@
 ### Feature B: Organisations-detaljer & Krediter
 - [x] Skapa dynamisk route: `app/(dashboard)/organizations/[id]/page.tsx`.
 - [x] På detaljsidan: Visa kundens info och en lista på deras transaktioner (Credit Ledger).
-- [X] Skapa funktion: "Top-up Credits" (Knapp som öppnar modal).
+- [x] Skapa funktion: "Top-up Credits" (Knapp som öppnar modal).
     - Input: Antal krediter, Beskrivning (t.ex. "Faktura 1024").
     - Server Action: `addTransaction` (Insert till `credit_ledger`).
 
 ### Feature C: Redigering & Justeringar (Quality of Life)
 *Nu när vi kan skapa data, måste vi kunna ändra och korrigera den.*
 
-- [ ] **Edit Organization Feature (Vertical Slice):**
+- [x] **Edit Organization Feature (Vertical Slice):**
     - Implementera hela flödet för att redigera en organisation.
     - **Backend:** Skapa Server Action `updateOrganization`.
     - **Frontend:** Lägg till "Redigera"-knapp på detaljsidan som öppnar en Dialog där man kan ändra Namn, Org.nr och Status.
