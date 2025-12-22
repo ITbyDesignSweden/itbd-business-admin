@@ -60,12 +60,46 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 export async function getOrganizationsWithCredits(): Promise<OrganizationWithCredits[]> {
   const supabase = await createClient()
 
-  // Get organizations with their credit balance
+  // Get recent organizations with their credit balance (for Dashboard)
   const { data: organizations, error } = await supabase
     .from("organizations")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(10)
+    .limit(5)
+
+  if (error) {
+    console.error("Error fetching organizations:", error)
+    return []
+  }
+
+  // For each organization, get their credit balance
+  const orgsWithCredits = await Promise.all(
+    (organizations || []).map(async (org) => {
+      const { data: credits } = await supabase
+        .from("credit_ledger")
+        .select("amount")
+        .eq("org_id", org.id)
+
+      const total_credits = credits?.reduce((sum, entry) => sum + entry.amount, 0) || 0
+
+      return {
+        ...org,
+        total_credits,
+      }
+    })
+  )
+
+  return orgsWithCredits
+}
+
+export async function getAllOrganizationsWithCredits(): Promise<OrganizationWithCredits[]> {
+  const supabase = await createClient()
+
+  // Get all organizations with their credit balance (for Organizations index page)
+  const { data: organizations, error } = await supabase
+    .from("organizations")
+    .select("*")
+    .order("created_at", { ascending: false })
 
   if (error) {
     console.error("Error fetching organizations:", error)

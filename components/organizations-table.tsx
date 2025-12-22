@@ -11,6 +11,7 @@ import type { OrganizationWithCredits } from "@/lib/types/database"
 
 interface OrganizationsTableProps {
   organizations: OrganizationWithCredits[]
+  title?: string
 }
 
 function getPlanColor(plan: string) {
@@ -38,7 +39,7 @@ function getStatusColor(status: string) {
   }
 }
 
-export function OrganizationsTable({ organizations }: OrganizationsTableProps) {
+export function OrganizationsTable({ organizations, title = "Recent Organizations" }: OrganizationsTableProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
 
@@ -53,7 +54,7 @@ export function OrganizationsTable({ organizations }: OrganizationsTableProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Organizations</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

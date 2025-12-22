@@ -59,9 +59,9 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
       {/* Back button */}
       <div>
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/" className="gap-2">
+          <Link href="/organizations" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Tillbaka till Dashboard
+            Tillbaka till Organizations
           </Link>
         </Button>
       </div>
