@@ -12,7 +12,7 @@ När vi är redo att bygga en feature, flyttar vi den till `active_sprint.md`.
 - [x] **Credit Ledger Page (`/ledger`)**
     - En central vy för ALLA transaktioner i hela systemet.
     - Filtrering på datum och organisation.
-- [x] **Pilot Requests (`/pilot-requests`)**
+- [ ] **Pilot Requests (`/pilot-requests`)**
     - Hantera inkommande förfrågningar från hemsidan.
     - Knapp för "Approve" -> Skapar automatiskt en Organization och skickar email.
 
