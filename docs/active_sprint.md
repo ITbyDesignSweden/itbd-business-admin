@@ -41,10 +41,10 @@
 ### Feature E: Security & Hardening (Tech Debt)
 *Nu säkrar vi datan innan vi växer.*
 
-- [ ] **RLS Audit:**
+- [x] **RLS Audit:**
     - Uppdatera Supabase Policies. Ändra från `authenticated` till att specifikt kräva rollen `admin` i `profiles`-tabellen.
     - Detta skyddar mot att framtida "vanliga" användare (kunder) kan nå admin-data.
-- [ ] **Data Integrity:**
+- [x] **Data Integrity:**
     - Lägg till unikt index på `organizations.org_nr` (så vi inte får dubbletter).
 
 ## 📝 Att göra (Backlog - Next Up)

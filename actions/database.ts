@@ -290,6 +290,15 @@ export async function createOrganization(
 
     if (error) {
       console.error("Error creating organization:", error)
+      
+      // Check if it's a unique constraint violation on org_nr
+      if (error.code === '23505' && error.message.includes('organizations_org_nr_unique')) {
+        return {
+          success: false,
+          error: `Organisationsnummer "${validatedData.org_nr}" finns redan registrerat. Vänligen använd ett annat organisationsnummer.`,
+        }
+      }
+      
       return {
         success: false,
         error: "Kunde inte skapa organisation. Försök igen.",

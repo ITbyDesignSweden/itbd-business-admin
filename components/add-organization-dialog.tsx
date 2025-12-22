@@ -47,14 +47,32 @@ function SubmitButton() {
 
 export function AddOrganizationDialog() {
   const [open, setOpen] = useState(false)
+  const [name, setName] = useState("")
+  const [orgNr, setOrgNr] = useState("")
   const [subscriptionPlan, setSubscriptionPlan] = useState<"care" | "growth" | "scale">("care")
   const [status, setStatus] = useState<"pilot" | "active" | "churned">("pilot")
   const { toast } = useToast()
 
+  function resetForm() {
+    setName("")
+    setOrgNr("")
+    setSubscriptionPlan("care")
+    setStatus("pilot")
+  }
+
+  function handleOpenChange(newOpen: boolean) {
+    setOpen(newOpen)
+    // Only reset form when closing via Cancel or X (not on successful submit)
+    if (!newOpen && name) {
+      // If there's content in the form when closing, ask to reset
+      resetForm()
+    }
+  }
+
   async function handleSubmit(formData: FormData) {
     const input: CreateOrganizationInput = {
-      name: formData.get("name") as string,
-      org_nr: formData.get("org_nr") as string,
+      name: name,
+      org_nr: orgNr,
       subscription_plan: subscriptionPlan,
       status: status,
     }
@@ -67,20 +85,19 @@ export function AddOrganizationDialog() {
         description: `${input.name} har lagts till i systemet.`,
       })
       setOpen(false)
-      // Reset form
-      setSubscriptionPlan("care")
-      setStatus("pilot")
+      resetForm()
     } else {
       toast({
         variant: "destructive",
         title: "❌ Fel uppstod",
         description: result.error || "Kunde inte skapa organisation.",
       })
+      // Don't reset form on error - keep values so user can correct them
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -106,6 +123,8 @@ export function AddOrganizationDialog() {
                 placeholder="t.ex. Acme AB"
                 required
                 autoComplete="off"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -115,6 +134,8 @@ export function AddOrganizationDialog() {
                 name="org_nr"
                 placeholder="t.ex. 556123-4567"
                 autoComplete="off"
+                value={orgNr}
+                onChange={(e) => setOrgNr(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -158,7 +179,7 @@ export function AddOrganizationDialog() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => handleOpenChange(false)}
             >
               Avbryt
             </Button>
