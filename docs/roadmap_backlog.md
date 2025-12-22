@@ -9,7 +9,7 @@ När vi är redo att bygga en feature, flyttar vi den till `active_sprint.md`.
 - [x] **Organizations Detail Page (`/organizations/[id]`)**
     - Se detaljerad info om kund.
     - Se lista på användare kopplade till org.
-- [x] **Credit Ledger Page (`/ledger`)**
+- [ ] **Credit Ledger Page (`/ledger`)**
     - En central vy för ALLA transaktioner i hela systemet.
     - Filtrering på datum och organisation.
 - [ ] **Pilot Requests (`/pilot-requests`)**
