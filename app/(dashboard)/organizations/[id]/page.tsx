@@ -61,7 +61,7 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
         <Button variant="ghost" size="sm" asChild>
           <Link href="/organizations" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Tillbaka till Organizations
+            Tillbaka till organisationer
           </Link>
         </Button>
       </div>
@@ -93,7 +93,7 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {organization.total_credits} <span className="text-lg font-normal text-muted-foreground">pts</span>
+              {organization.total_credits} <span className="text-lg font-normal text-muted-foreground">krediter</span>
             </div>
           </CardContent>
         </Card>

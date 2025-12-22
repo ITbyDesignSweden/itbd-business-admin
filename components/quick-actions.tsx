@@ -4,15 +4,15 @@ import { Button } from "@/components/ui/button"
 import { AddOrganizationDialog } from "@/components/add-organization-dialog"
 
 const actions = [
-  { label: "Register Manual Hours", icon: Clock },
-  { label: "Top-up Credits", icon: CreditCard },
+  { label: "Registrera manuella timmar", icon: Clock },
+  { label: "Fyll på krediter", icon: CreditCard },
 ]
 
 export function QuickActions() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quick Actions</CardTitle>
+        <CardTitle>Snabbkommandon</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <AddOrganizationDialog />

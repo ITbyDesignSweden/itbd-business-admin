@@ -84,11 +84,11 @@ export function CreditLedgerTable({ transactions, projects = [] }: CreditLedgerT
                         : "bg-red-500/10 text-red-600 border-red-500/20 font-mono"
                     }
                   >
-                    {isPositive ? "+" : ""}{transaction.amount} pts
+                    {isPositive ? "+" : ""}{transaction.amount} krediter
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right hidden sm:table-cell font-medium">
-                  {transaction.runningBalance} pts
+                  {transaction.runningBalance} krediter
                 </TableCell>
               </TableRow>
             )

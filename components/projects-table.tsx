@@ -53,7 +53,7 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
               <TableCell>{getStatusBadge(project.status)}</TableCell>
               <TableCell className="text-right">
                 <span className="font-mono">{project.cost_credits}</span>
-                <span className="ml-1 text-xs text-muted-foreground">pts</span>
+                <span className="ml-1 text-xs text-muted-foreground">krediter</span>
               </TableCell>
               <TableCell className="text-right text-sm text-muted-foreground">
                 {formatDistanceToNow(new Date(project.created_at), {

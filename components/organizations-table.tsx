@@ -39,7 +39,7 @@ function getStatusColor(status: string) {
   }
 }
 
-export function OrganizationsTable({ organizations, title = "Recent Organizations" }: OrganizationsTableProps) {
+export function OrganizationsTable({ organizations, title = "Senaste organisationer" }: OrganizationsTableProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
 
@@ -58,7 +58,7 @@ export function OrganizationsTable({ organizations, title = "Recent Organization
         <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search organizations..."
+            placeholder="Sök organisationer..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -69,10 +69,10 @@ export function OrganizationsTable({ organizations, title = "Recent Organization
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead className="hidden sm:table-cell">Org Number</TableHead>
+              <TableHead>Namn</TableHead>
+              <TableHead className="hidden sm:table-cell">Org.nummer</TableHead>
               <TableHead>Plan</TableHead>
-              <TableHead className="hidden md:table-cell">Credits</TableHead>
+              <TableHead className="hidden md:table-cell">Krediter</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -80,7 +80,7 @@ export function OrganizationsTable({ organizations, title = "Recent Organization
             {filteredOrganizations.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  No organizations found
+                  Inga organisationer hittades
                 </TableCell>
               </TableRow>
             ) : (
@@ -99,7 +99,7 @@ export function OrganizationsTable({ organizations, title = "Recent Organization
                       {org.subscription_plan.charAt(0).toUpperCase() + org.subscription_plan.slice(1)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{org.total_credits} pts</TableCell>
+                  <TableCell className="hidden md:table-cell">{org.total_credits} krediter</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 rounded-full ${getStatusColor(org.status)}`} />

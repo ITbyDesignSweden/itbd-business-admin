@@ -140,7 +140,7 @@ export function AddOrganizationDialog() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="subscription_plan">
-                Subscription Plan <span className="text-red-500">*</span>
+                Prenumerationsplan <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={subscriptionPlan}
@@ -169,8 +169,8 @@ export function AddOrganizationDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pilot">Pilot</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="churned">Churned</SelectItem>
+                  <SelectItem value="active">Aktiv</SelectItem>
+                  <SelectItem value="churned">Avslutad</SelectItem>
                 </SelectContent>
               </Select>
             </div>

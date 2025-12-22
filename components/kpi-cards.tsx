@@ -13,19 +13,19 @@ export async function KpiCards() {
       trendPositive: true,
     },
     {
-      title: "Active Customers",
+      title: "Aktiva kunder",
       value: stats.active_customers.toString(),
       icon: Users,
     },
     {
-      title: "Pending Pilots",
+      title: "Väntande piloter",
       value: stats.pending_pilots.toString(),
       icon: Clock,
       warning: stats.pending_pilots > 0,
     },
     {
-      title: "Total Credits Output",
-      value: `${stats.total_credits_output} pts`,
+      title: "Totalt använda krediter",
+      value: `${stats.total_credits_output} krediter`,
       icon: Zap,
     },
   ]

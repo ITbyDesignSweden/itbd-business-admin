@@ -11,7 +11,7 @@ function SubmitButton() {
   const { pending } = useFormStatus()
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? "Logging in..." : "Sign In"}
+      {pending ? "Loggar in..." : "Logga in"}
     </Button>
   )
 }
@@ -32,13 +32,13 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">IT by Design</CardTitle>
-          <CardDescription>Admin Portal - Sign in to continue</CardDescription>
+          <CardDescription>Admin Portal - Logga in för att fortsätta</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
-                Email
+                E-post
               </label>
               <Input
                 id="email"
@@ -51,7 +51,7 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium">
-                Password
+                Lösenord
               </label>
               <Input
                 id="password"

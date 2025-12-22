@@ -10,10 +10,10 @@ import { logout } from "@/actions/auth"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/organizations", label: "Organizations", icon: Users },
-  { href: "/ledger", label: "Ledger", icon: Receipt },
-  { href: "/pilot-requests", label: "Pilot Requests", icon: Inbox },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/organizations", label: "Organisationer", icon: Users },
+  { href: "/ledger", label: "Huvudbok", icon: Receipt },
+  { href: "/pilot-requests", label: "Pilotförfrågningar", icon: Inbox },
+  { href: "/settings", label: "Inställningar", icon: Settings },
 ]
 
 interface SidebarProps {
@@ -80,7 +80,7 @@ export function Sidebar({ userEmail, userName }: SidebarProps) {
             className="w-full justify-start gap-2 text-sidebar-foreground/70"
           >
             <LogOut className="h-4 w-4" />
-            Sign Out
+            Logga ut
           </Button>
         </form>
       </div>

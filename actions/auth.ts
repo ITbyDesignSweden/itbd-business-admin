@@ -16,7 +16,20 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message }
+    // Translate common Supabase auth errors to Swedish
+    let errorMessage = error.message
+    if (error.message.includes("Invalid login credentials")) {
+      errorMessage = "Ogiltiga inloggningsuppgifter"
+    } else if (error.message.includes("Email not confirmed")) {
+      errorMessage = "E-postadressen är inte bekräftad"
+    } else if (error.message.includes("Invalid email")) {
+      errorMessage = "Ogiltig e-postadress"
+    } else if (error.message.includes("Password should be at least")) {
+      errorMessage = "Lösenordet måste vara minst 6 tecken"
+    } else {
+      errorMessage = "Något gick fel vid inloggning"
+    }
+    return { error: errorMessage }
   }
 
   revalidatePath("/", "layout")

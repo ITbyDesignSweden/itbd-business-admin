@@ -33,7 +33,7 @@ export function DashboardHeader({ userEmail, userName }: DashboardHeaderProps) {
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="lg:hidden">
               <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle menu</span>
+              <span className="sr-only">Växla meny</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
@@ -46,7 +46,7 @@ export function DashboardHeader({ userEmail, userName }: DashboardHeaderProps) {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
-          <span className="sr-only">Notifications</span>
+          <span className="sr-only">Notifikationer</span>
         </Button>
         <Avatar className="h-8 w-8 lg:hidden">
           <AvatarFallback>{initials}</AvatarFallback>
