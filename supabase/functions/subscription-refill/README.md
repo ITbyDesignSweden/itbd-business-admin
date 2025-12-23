@@ -268,3 +268,4 @@ Edge Function använder dessa miljövariabler (sätts automatiskt av Supabase):
 - **Server actions:** `actions/database.ts` (triggerSubscriptionRefills)
 - **Admin UI:** `app/(dashboard)/settings/refills/page.tsx`
 
+

@@ -206,3 +206,4 @@ GRANT SELECT ON public.organizations_due_for_refill TO authenticated;
 COMMENT ON VIEW public.organizations_due_for_refill IS 
   'Shows all organizations with active subscriptions that are due for credit refill today or earlier';
 
+

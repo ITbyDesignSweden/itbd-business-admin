@@ -27,3 +27,4 @@ LIMIT 1;
 -- 3. Check all profiles
 SELECT * FROM public.profiles;
 
+
