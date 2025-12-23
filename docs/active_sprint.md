@@ -31,14 +31,14 @@
 ### Feature N: The Refill Engine (Automation)
 *Det magiska scriptet som körs varje natt.*
 
-- [ ] **Edge Function / Cron Job:**
-    - Skapa en funktion (via Supabase Edge Functions eller Next.js API route + Vercel Cron).
+- [x] **Edge Function / Cron Job:**
+    - Skapa en funktion (via Supabase Edge Functions).
     - **Logik:**
         1. Hitta alla aktiva orgs där `next_refill_date` <= IDAG.
         2. För varje org: Skapa en transaktion i `credit_ledger` ("Månadspåfyllning: +50").
         3. Uppdatera `next_refill_date` med +1 månad.
     - **Säkerhet:** Endast anropbar med en "Service Role Key" (så ingen kan trigga den utifrån).
-- [ ] **UI Visibility:**
+- [x] **UI Visibility:**
     - (Optional) Visa "Nästa påfyllning: 2024-02-01" i dashboarden.
 
 ## 📝 Att göra (Backlog)

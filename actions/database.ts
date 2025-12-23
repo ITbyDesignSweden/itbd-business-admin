@@ -980,3 +980,106 @@ export async function changeSubscriptionPlan(
     }
   }
 }
+
+// ========================================
+// REFILL ENGINE (MANUAL TRIGGER)
+// ========================================
+
+// Manual trigger for subscription refills (for testing/admin purposes)
+export async function triggerSubscriptionRefills(): Promise<{
+  success: boolean
+  error?: string
+  data?: {
+    organizations_processed: number
+    credits_added: number
+    duration_ms: number
+    errors?: string[]
+  }
+}> {
+  try {
+    const supabase = await createClient()
+
+    // Call the database function that handles refill logic
+    const { data, error } = await supabase.rpc("process_subscription_refills")
+
+    if (error) {
+      console.error("Error processing refills:", error)
+      return {
+        success: false,
+        error: "Kunde inte köra påfyllning. Försök igen.",
+      }
+    }
+
+    // Revalidate dashboard and organizations
+    revalidatePath("/")
+    revalidatePath("/organizations")
+
+    return {
+      success: data.success,
+      data: {
+        organizations_processed: data.organizations_processed,
+        credits_added: data.credits_added,
+        duration_ms: data.duration_ms,
+        errors: data.errors,
+      },
+    }
+  } catch (error) {
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+
+// Get organizations that are due for refill (for admin visibility)
+export async function getOrganizationsDueForRefill(): Promise<
+  Array<{
+    id: string
+    name: string
+    next_refill_date: string
+    plan_name: string
+    monthly_credits: number
+  }>
+> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("organizations_due_for_refill")
+    .select("*")
+
+  if (error) {
+    console.error("Error fetching organizations due for refill:", error)
+    return []
+  }
+
+  return data || []
+}
+
+// Get recent refill execution logs
+export async function getRecentRefillExecutions(limit: number = 10): Promise<
+  Array<{
+    id: string
+    executed_at: string
+    organizations_processed: number
+    credits_added: number
+    execution_duration_ms: number | null
+    status: string
+    error_message: string | null
+  }>
+> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("refill_executions")
+    .select("*")
+    .order("executed_at", { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    console.error("Error fetching refill executions:", error)
+    return []
+  }
+
+  return data || []
+}

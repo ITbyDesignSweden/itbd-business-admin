@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ChevronRight, CreditCard } from "lucide-react"
+import { ChevronRight, CreditCard, RefreshCw } from "lucide-react"
 
 export default async function SettingsPage() {
   const profile = await getCurrentProfile()
@@ -39,7 +39,7 @@ export default async function SettingsPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Snabblänkar</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-1">
           <Link href="/settings/plans">
             <Button variant="ghost" className="w-full justify-between h-auto py-3">
               <div className="flex items-center gap-3">
@@ -49,6 +49,20 @@ export default async function SettingsPage() {
                 <div className="text-left">
                   <div className="font-medium">Prenumerationsplaner</div>
                   <div className="text-sm text-muted-foreground">Hantera planer och priser</div>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </Link>
+          <Link href="/settings/refills">
+            <Button variant="ghost" className="w-full justify-between h-auto py-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-emerald-500/10 p-2">
+                  <RefreshCw className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium">Kreditpåfyllning</div>
+                  <div className="text-sm text-muted-foreground">Automatisk månatlig påfyllning</div>
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
