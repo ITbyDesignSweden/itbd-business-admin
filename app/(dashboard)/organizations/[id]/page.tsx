@@ -4,40 +4,19 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getOrganizationById, getCreditLedgerByOrgId, getProjectsByOrgId } from "@/actions/database"
+import { getOrganizationWithPlan, getCreditLedgerByOrgId, getProjectsByOrgId } from "@/actions/database"
+import { getActivePlans } from "@/actions/subscription-plans"
 import { CreditLedgerTable } from "@/components/credit-ledger-table"
 import { TopUpCreditsDialog } from "@/components/top-up-credits-dialog"
 import { EditOrganizationDialog } from "@/components/edit-organization-dialog"
 import { ProjectsTable } from "@/components/projects-table"
 import { CreateProjectDialog } from "@/components/create-project-dialog"
+import { SubscriptionCard } from "@/components/subscription-card"
 
 interface OrganizationPageProps {
   params: Promise<{
     id: string
   }>
-}
-
-function getPlanColor(plan: string | null) {
-  if (!plan) {
-    return "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20"
-  }
-  switch (plan.toLowerCase()) {
-    case "growth":
-      return "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
-    case "scale":
-      return "bg-purple-500/10 text-purple-500 hover:bg-purple-500/20"
-    case "care":
-      return "bg-zinc-500/10 text-zinc-500 hover:bg-zinc-500/20"
-    default:
-      return "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20"
-  }
-}
-
-function getPlanLabel(plan: string | null) {
-  if (!plan) {
-    return "Ingen plan"
-  }
-  return plan.charAt(0).toUpperCase() + plan.slice(1)
 }
 
 function getStatusColor(status: string) {
@@ -53,17 +32,35 @@ function getStatusColor(status: string) {
   }
 }
 
+function getStatusLabel(status: string) {
+  switch (status.toLowerCase()) {
+    case "active":
+      return "Aktiv"
+    case "pilot":
+      return "Pilot"
+    case "churned":
+      return "Avslutad"
+    default:
+      return status
+  }
+}
+
 export default async function OrganizationPage({ params }: OrganizationPageProps) {
   const { id } = await params
-  const organization = await getOrganizationById(id)
+  
+  // Fetch all data in parallel for optimal performance (single roundtrip)
+  const [orgData, transactions, projects, availablePlans] = await Promise.all([
+    getOrganizationWithPlan(id),
+    getCreditLedgerByOrgId(id),
+    getProjectsByOrgId(id),
+    getActivePlans(),
+  ])
 
-  if (!organization) {
+  if (!orgData) {
     notFound()
   }
 
-  // Fetch credit transactions and projects for this organization
-  const transactions = await getCreditLedgerByOrgId(id)
-  const projects = await getProjectsByOrgId(id)
+  const { organization, plan } = orgData
 
   return (
     <div className="space-y-6">
@@ -85,11 +82,8 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
             <EditOrganizationDialog organization={organization} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className={getPlanColor(organization.subscription_plan)}>
-              {getPlanLabel(organization.subscription_plan)}
-            </Badge>
             <Badge variant="outline" className={getStatusColor(organization.status)}>
-              {organization.status.charAt(0).toUpperCase() + organization.status.slice(1)}
+              {getStatusLabel(organization.status)}
             </Badge>
           </div>
         </div>
@@ -97,17 +91,27 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
           <p className="text-muted-foreground">Org.nr: {organization.org_nr}</p>
         )}
 
-        {/* Credit Balance Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Kreditsaldo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {organization.total_credits} <span className="text-lg font-normal text-muted-foreground">krediter</span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Two-column layout for Credit Balance and Subscription */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Credit Balance Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Kreditsaldo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {organization.total_credits} <span className="text-lg font-normal text-muted-foreground">krediter</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Subscription Card */}
+          <SubscriptionCard
+            organization={organization}
+            plan={plan}
+            availablePlans={availablePlans}
+          />
+        </div>
       </div>
 
       {/* Projects Section */}

@@ -49,9 +49,6 @@ interface EditOrganizationDialogProps {
 
 export function EditOrganizationDialog({ organization }: EditOrganizationDialogProps) {
   const [open, setOpen] = useState(false)
-  const [subscriptionPlan, setSubscriptionPlan] = useState<"care" | "growth" | "scale" | null>(
-    organization.subscription_plan
-  )
   const [status, setStatus] = useState<"pilot" | "active" | "churned">(
     organization.status as "pilot" | "active" | "churned"
   )
@@ -62,7 +59,6 @@ export function EditOrganizationDialog({ organization }: EditOrganizationDialogP
       id: organization.id,
       name: formData.get("name") as string,
       org_nr: formData.get("org_nr") as string,
-      subscription_plan: subscriptionPlan,
       status: status,
     }
 
@@ -121,25 +117,6 @@ export function EditOrganizationDialog({ organization }: EditOrganizationDialogP
                 defaultValue={organization.org_nr || ""}
                 autoComplete="off"
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="subscription_plan">
-                Prenumerationsplan
-              </Label>
-              <Select
-                value={subscriptionPlan || "none"}
-                onValueChange={(value) => setSubscriptionPlan(value === "none" ? null : value as "care" | "growth" | "scale")}
-              >
-                <SelectTrigger id="subscription_plan">
-                  <SelectValue placeholder="Välj plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Ingen plan (pilot väljer senare)</SelectItem>
-                  <SelectItem value="care">Care (5 000 kr/mån)</SelectItem>
-                  <SelectItem value="growth">Growth (15 000 kr/mån)</SelectItem>
-                  <SelectItem value="scale">Scale (35 000 kr/mån)</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="status">

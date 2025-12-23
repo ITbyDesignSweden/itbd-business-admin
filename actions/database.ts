@@ -3,21 +3,15 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import type { Organization, DashboardStats, OrganizationWithCredits, CreditLedger, Project, GlobalLedgerTransaction } from "@/lib/types/database"
-
-// Plan pricing in SEK
-const PLAN_PRICING = {
-  care: 5000,
-  growth: 15000,
-  scale: 35000,
-}
+import type { Organization, DashboardStats, OrganizationWithCredits, CreditLedger, Project, GlobalLedgerTransaction, SubscriptionPlan } from "@/lib/types/database"
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = await createClient()
 
-  // Get all active/pilot organizations
+  // Get all active/pilot organizations with their plan information (via VIEW)
+  // VIEW already includes plan_price via JOIN - no N+1 queries!
   const { data: organizations, error } = await supabase
-    .from("organizations")
+    .from("organizations_with_credits")
     .select("*")
     .in("status", ["active", "pilot"])
 
@@ -35,21 +29,22 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const activeOrgs = organizations?.filter((org) => org.status === "active") || []
   const pilotOrgs = organizations?.filter((org) => org.status === "pilot") || []
 
+  // Calculate MRR from paying customers only (status = "active", NOT pilots)
+  // MRR (Monthly Recurring Revenue) counts organizations that have:
+  // 1. status = "active" (paying customers, NOT pilots)
+  // 2. subscription_status = "active" (not paused/cancelled/inactive)
+  // 3. A plan with a price
   const total_mrr = activeOrgs.reduce((sum, org) => {
-    // Only count organizations that have a subscription plan
-    if (!org.subscription_plan) return sum
-    return sum + (PLAN_PRICING[org.subscription_plan as keyof typeof PLAN_PRICING] || 0)
+    if (org.subscription_status !== "active" || !org.plan_price) return sum
+    return sum + org.plan_price
   }, 0)
 
   // Get total credits output (negative transactions = usage)
-  const { data: creditData } = await supabase
-    .from("credit_ledger")
-    .select("amount")
-    .lt("amount", 0)
+  // Push aggregation to database instead of JavaScript for performance
+  const { data: creditSum } = await supabase
+    .rpc("get_total_credits_output")
 
-  const total_credits_output = Math.abs(
-    creditData?.reduce((sum, entry) => sum + entry.amount, 0) || 0
-  )
+  const total_credits_output = Math.abs(creditSum || 0)
 
   return {
     total_mrr,
@@ -113,6 +108,38 @@ export async function getOrganizationById(id: string): Promise<OrganizationWithC
   }
 
   return organization || null
+}
+
+export async function getOrganizationWithPlan(id: string): Promise<{ organization: OrganizationWithCredits; plan: SubscriptionPlan | null } | null> {
+  const supabase = await createClient()
+
+  // Get organization by ID with credit balance
+  // VIEW already includes plan data via JOIN - no second query needed!
+  const { data: organization, error: orgError } = await supabase
+    .from("organizations_with_credits")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (orgError || !organization) {
+    console.error("Error fetching organization:", orgError)
+    return null
+  }
+
+  // Construct plan object from VIEW data (already included via JOIN)
+  let plan: SubscriptionPlan | null = null
+  if (organization.plan_id && organization.plan_name) {
+    plan = {
+      id: organization.plan_id,
+      name: organization.plan_name,
+      monthly_credits: organization.plan_monthly_credits || 0,
+      price: organization.plan_price,
+      is_active: true, // We assume it's active since it's being used
+      created_at: "", // Not needed for display purposes
+    }
+  }
+
+  return { organization, plan }
 }
 
 export async function getCreditLedgerByOrgId(orgId: string): Promise<CreditLedger[]> {
@@ -260,7 +287,6 @@ export async function addTransaction(
 const createOrganizationSchema = z.object({
   name: z.string().min(1, "Organisationsnamn krävs").max(255),
   org_nr: z.string().optional(),
-  subscription_plan: z.enum(["care", "growth", "scale"]).nullable(),
   status: z.enum(["pilot", "active", "churned"]),
 })
 
@@ -281,7 +307,6 @@ export async function createOrganization(
       .insert({
         name: validatedData.name,
         org_nr: validatedData.org_nr || null,
-        subscription_plan: validatedData.subscription_plan,
         status: validatedData.status,
       })
       .select()
@@ -332,7 +357,6 @@ const updateOrganizationSchema = z.object({
   id: z.string().uuid("Ogiltigt organisations-ID"),
   name: z.string().min(1, "Organisationsnamn krävs").max(255),
   org_nr: z.string().optional(),
-  subscription_plan: z.enum(["care", "growth", "scale"]).nullable(),
   status: z.enum(["pilot", "active", "churned"]),
 })
 
@@ -353,7 +377,6 @@ export async function updateOrganization(
       .update({
         name: validatedData.name,
         org_nr: validatedData.org_nr || null,
-        subscription_plan: validatedData.subscription_plan,
         status: validatedData.status,
       })
       .eq("id", validatedData.id)
@@ -623,4 +646,337 @@ export async function getAllTransactions(): Promise<GlobalLedgerTransaction[]> {
   }))
 
   return globalTransactions
+}
+
+// ========================================
+// SUBSCRIPTION MANAGEMENT
+// ========================================
+
+// Start a subscription for an organization
+const startSubscriptionSchema = z.object({
+  orgId: z.string().uuid("Ogiltigt organisations-ID"),
+  planId: z.string().uuid("Ogiltigt plan-ID"),
+  startDate: z.string().refine((date) => !isNaN(Date.parse(date)), "Ogiltigt datum"),
+})
+
+export type StartSubscriptionInput = z.infer<typeof startSubscriptionSchema>
+
+export async function startSubscription(
+  input: StartSubscriptionInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Validate input
+    const validatedData = startSubscriptionSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Verify that plan exists and is active
+    const { data: plan, error: planError } = await supabase
+      .from("subscription_plans")
+      .select("*")
+      .eq("id", validatedData.planId)
+      .single()
+
+    if (planError || !plan) {
+      return {
+        success: false,
+        error: "Kunde inte hitta vald plan.",
+      }
+    }
+
+    if (!plan.is_active) {
+      return {
+        success: false,
+        error: "Vald plan är inte aktiv.",
+      }
+    }
+
+    // Calculate next refill date (1 month from start date)
+    const startDate = new Date(validatedData.startDate)
+    const nextRefillDate = new Date(startDate)
+    nextRefillDate.setMonth(nextRefillDate.getMonth() + 1)
+
+    // Update organization with subscription details
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({
+        plan_id: validatedData.planId,
+        subscription_start_date: startDate.toISOString(),
+        next_refill_date: nextRefillDate.toISOString(),
+        subscription_status: "active",
+      })
+      .eq("id", validatedData.orgId)
+
+    if (updateError) {
+      console.error("Error starting subscription:", updateError)
+      return {
+        success: false,
+        error: "Kunde inte starta prenumeration. Försök igen.",
+      }
+    }
+
+    // Revalidate organization page
+    revalidatePath(`/organizations/${validatedData.orgId}`)
+    revalidatePath("/")
+
+    return {
+      success: true,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+
+// Cancel a subscription for an organization
+const cancelSubscriptionSchema = z.object({
+  orgId: z.string().uuid("Ogiltigt organisations-ID"),
+})
+
+export type CancelSubscriptionInput = z.infer<typeof cancelSubscriptionSchema>
+
+export async function cancelSubscription(
+  input: CancelSubscriptionInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Validate input
+    const validatedData = cancelSubscriptionSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Update organization to cancel subscription
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({
+        subscription_status: "cancelled",
+        next_refill_date: null, // Stop future refills
+      })
+      .eq("id", validatedData.orgId)
+
+    if (updateError) {
+      console.error("Error cancelling subscription:", updateError)
+      return {
+        success: false,
+        error: "Kunde inte avsluta prenumeration. Försök igen.",
+      }
+    }
+
+    // Revalidate organization page
+    revalidatePath(`/organizations/${validatedData.orgId}`)
+    revalidatePath("/")
+
+    return {
+      success: true,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+
+// Pause a subscription
+const pauseSubscriptionSchema = z.object({
+  orgId: z.string().uuid("Ogiltigt organisations-ID"),
+})
+
+export type PauseSubscriptionInput = z.infer<typeof pauseSubscriptionSchema>
+
+export async function pauseSubscription(
+  input: PauseSubscriptionInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Validate input
+    const validatedData = pauseSubscriptionSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Update organization to pause subscription
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({
+        subscription_status: "paused",
+      })
+      .eq("id", validatedData.orgId)
+
+    if (updateError) {
+      console.error("Error pausing subscription:", updateError)
+      return {
+        success: false,
+        error: "Kunde inte pausa prenumeration. Försök igen.",
+      }
+    }
+
+    // Revalidate organization page
+    revalidatePath(`/organizations/${validatedData.orgId}`)
+    revalidatePath("/")
+
+    return {
+      success: true,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+
+// Resume a paused subscription
+const resumeSubscriptionSchema = z.object({
+  orgId: z.string().uuid("Ogiltigt organisations-ID"),
+})
+
+export type ResumeSubscriptionInput = z.infer<typeof resumeSubscriptionSchema>
+
+export async function resumeSubscription(
+  input: ResumeSubscriptionInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Validate input
+    const validatedData = resumeSubscriptionSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Update organization to resume subscription
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({
+        subscription_status: "active",
+      })
+      .eq("id", validatedData.orgId)
+
+    if (updateError) {
+      console.error("Error resuming subscription:", updateError)
+      return {
+        success: false,
+        error: "Kunde inte återuppta prenumeration. Försök igen.",
+      }
+    }
+
+    // Revalidate organization page
+    revalidatePath(`/organizations/${validatedData.orgId}`)
+    revalidatePath("/")
+
+    return {
+      success: true,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
+
+// Change subscription plan
+const changeSubscriptionPlanSchema = z.object({
+  orgId: z.string().uuid("Ogiltigt organisations-ID"),
+  planId: z.string().uuid("Ogiltigt plan-ID"),
+})
+
+export type ChangeSubscriptionPlanInput = z.infer<typeof changeSubscriptionPlanSchema>
+
+export async function changeSubscriptionPlan(
+  input: ChangeSubscriptionPlanInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Validate input
+    const validatedData = changeSubscriptionPlanSchema.parse(input)
+
+    const supabase = await createClient()
+
+    // Verify that plan exists and is active
+    const { data: plan, error: planError } = await supabase
+      .from("subscription_plans")
+      .select("*")
+      .eq("id", validatedData.planId)
+      .single()
+
+    if (planError || !plan) {
+      return {
+        success: false,
+        error: "Kunde inte hitta vald plan.",
+      }
+    }
+
+    if (!plan.is_active) {
+      return {
+        success: false,
+        error: "Vald plan är inte aktiv.",
+      }
+    }
+
+    // Update organization with new plan
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({
+        plan_id: validatedData.planId,
+      })
+      .eq("id", validatedData.orgId)
+
+    if (updateError) {
+      console.error("Error changing plan:", updateError)
+      return {
+        success: false,
+        error: "Kunde inte byta plan. Försök igen.",
+      }
+    }
+
+    // Revalidate organization page
+    revalidatePath(`/organizations/${validatedData.orgId}`)
+    revalidatePath("/")
+
+    return {
+      success: true,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
 }

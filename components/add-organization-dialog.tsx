@@ -49,14 +49,12 @@ export function AddOrganizationDialog() {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [orgNr, setOrgNr] = useState("")
-  const [subscriptionPlan, setSubscriptionPlan] = useState<"care" | "growth" | "scale" | null>(null)
   const [status, setStatus] = useState<"pilot" | "active" | "churned">("pilot")
   const { toast } = useToast()
 
   function resetForm() {
     setName("")
     setOrgNr("")
-    setSubscriptionPlan(null)
     setStatus("pilot")
   }
 
@@ -73,7 +71,6 @@ export function AddOrganizationDialog() {
     const input: CreateOrganizationInput = {
       name: name,
       org_nr: orgNr,
-      subscription_plan: subscriptionPlan,
       status: status,
     }
 
@@ -137,25 +134,9 @@ export function AddOrganizationDialog() {
                 value={orgNr}
                 onChange={(e) => setOrgNr(e.target.value)}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="subscription_plan">
-                Prenumerationsplan
-              </Label>
-              <Select
-                value={subscriptionPlan || "none"}
-                onValueChange={(value) => setSubscriptionPlan(value === "none" ? null : value as "care" | "growth" | "scale")}
-              >
-                <SelectTrigger id="subscription_plan">
-                  <SelectValue placeholder="Välj plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Ingen plan (pilot väljer senare)</SelectItem>
-                  <SelectItem value="care">Care (5 000 kr/mån)</SelectItem>
-                  <SelectItem value="growth">Growth (15 000 kr/mån)</SelectItem>
-                  <SelectItem value="scale">Scale (35 000 kr/mån)</SelectItem>
-                </SelectContent>
-              </Select>
+              <p className="text-xs text-muted-foreground">
+                Prenumeration kan startas från organisationens detaljsida efter att den skapats.
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="status">

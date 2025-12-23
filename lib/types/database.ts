@@ -1,13 +1,25 @@
-export type SubscriptionPlan = "care" | "growth" | "scale" | null
 export type OrganizationStatus = "pilot" | "active" | "churned"
 export type ProjectStatus = "backlog" | "in_progress" | "completed" | "cancelled"
+export type SubscriptionStatus = "active" | "paused" | "cancelled" | "inactive"
+
+export interface SubscriptionPlan {
+  id: string
+  created_at: string
+  name: string
+  monthly_credits: number
+  price: number | null
+  is_active: boolean
+}
 
 export interface Organization {
   id: string
   created_at: string
   name: string
   org_nr: string | null
-  subscription_plan: SubscriptionPlan
+  plan_id: string | null
+  subscription_start_date: string | null
+  next_refill_date: string | null
+  subscription_status: SubscriptionStatus
   status: OrganizationStatus
 }
 
@@ -40,6 +52,14 @@ export interface Project {
 // View/Aggregate types for dashboard
 export interface OrganizationWithCredits extends Organization {
   total_credits: number
+  plan_name: string | null // Plan name from subscription_plans table via JOIN
+  plan_price: number | null // Plan price from subscription_plans table via JOIN
+  plan_monthly_credits: number | null // Monthly credits from subscription_plans table via JOIN
+}
+
+// Organization with plan details (joined data)
+export interface OrganizationWithPlan extends OrganizationWithCredits {
+  plan?: SubscriptionPlan | null
 }
 
 export interface DashboardStats {

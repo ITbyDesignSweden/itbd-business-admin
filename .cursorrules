@@ -13,6 +13,26 @@ För att hålla hög kodkvalitet gäller följande strikta uppdelning:
    - Detta inkluderar: Rubriker, Paragrafer, Knappar, Placeholders, Toast-meddelanden, Felmeddelanden.
    - *Exempel:* `<Button>Spara ändringar</Button>`, `toast.success("Kunden har skapats!")`.
 
+# DATA FETCHING & PERFORMANCE RULES
+
+1. **SERVER-SIDE FIRST:**
+   - All data fetching must happen in **Server Components** (`page.tsx`) or **Server Actions**.
+   - **NEVER** use `useEffect` for fetching data inside Client Components unless absolutely necessary for real-time interactivity.
+
+2. **NO CLIENT-SIDE JOINS:**
+   - **Strictly Forbidden:** Fetching list A, then looping through it to fetch related item B.
+   - **Instead:** Use Supabase Joins via `.select('*, related_table(*)')`.
+
+3. **USE DATABASE POWER:**
+   - For calculated fields (counts, sums, averages):
+     - **Option A (Preferred):** Create a **SQL View** or **RPC Function** in the database.
+     - **Option B:** Use `.select('*, related_table(count)')` if simple.
+   - Do NOT calculate sums (like total credits used) by fetching thousands of rows to the server and reducing array in JavaScript. Push the math to Postgres.
+
+4. **SINGLE ROUNDTRIP:**
+   - A page load should ideally trigger **1 database query** per logical section.
+   - Use `Promise.all()` if fetching unconnected data parallelly in a Server Component.
+   
 # Övriga Regler
 1. Följ ALLTID processen beskriven i `docs/workflow.md`.
 2. Använd tekniska riktlinjer från `docs/tech_stack.md`.

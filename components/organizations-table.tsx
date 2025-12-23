@@ -34,7 +34,8 @@ function getPlanLabel(plan: string | null) {
   if (!plan) {
     return "Ingen plan"
   }
-  return plan.charAt(0).toUpperCase() + plan.slice(1)
+  // Plan name is already properly formatted from database (e.g., "Care", "Growth", "Scale")
+  return plan
 }
 
 function getStatusColor(status: string) {
@@ -47,6 +48,19 @@ function getStatusColor(status: string) {
       return "bg-red-500"
     default:
       return "bg-gray-500"
+  }
+}
+
+function getStatusLabel(status: string) {
+  switch (status.toLowerCase()) {
+    case "active":
+      return "Aktiv"
+    case "pilot":
+      return "Pilot"
+    case "churned":
+      return "Avslutad"
+    default:
+      return status
   }
 }
 
@@ -106,15 +120,15 @@ export function OrganizationsTable({ organizations, title = "Senaste organisatio
                     {org.org_nr || "—"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={getPlanColor(org.subscription_plan)}>
-                      {getPlanLabel(org.subscription_plan)}
+                    <Badge variant="secondary" className={getPlanColor(org.plan_name)}>
+                      {getPlanLabel(org.plan_name)}
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">{org.total_credits} krediter</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 rounded-full ${getStatusColor(org.status)}`} />
-                      <span className="text-sm capitalize">{org.status}</span>
+                      <span className="text-sm">{getStatusLabel(org.status)}</span>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -1,47 +1,46 @@
-# Active Sprint: Admin Portal - Growth & Admin Control
+# Active Sprint: Admin Portal - Subscription Engine
 
 **Status:** Planering
-**Mål:** Automatisera inflödet av nya kunder (Pilot Requests) och ge admin kontroll över sitt eget konto.
+**Mål:** Automatisera månatlig kreditpåfyllning baserat på prenumerationsplaner.
 
 ## ✅ Klart (Done)
-- [x] Navigation: Organizations & Ledger Index pages.
-- [x] Business Core: Projects, Costs, Safe Delete.
-- [x] Security: RLS & Constraints.
+- [x] Business Core: Projects, Costs, Ledger.
+- [x] Admin Control: Pilot Requests, Organization Management.
 
 ## 🚧 Pågående (Current Context)
 
-### Feature H: Pilot Requests (Inbound Funnel)
-*Hantera förfrågningar från hemsidan.*
+### Feature L: Plan Management (Product Catalog)
+*Vi måste definiera vad vi säljer i systemet.*
 
-- [x] **Database & Storage:** Grundtabell och Bucket uppsatt.
-- [x] **Public Page:** Formulär och Single-file upload.
-- [x] **Admin Page:** Listning av leads.
+- [x] **Database Table (`subscription_plans`):**
+    - Kolumner: `name` (t.ex. 'Growth'), `monthly_credits` (t.ex. 50), `price` (optional för nu), `is_active`.
+- [x] **Admin UI (`/settings/plans`):**
+    - En enkel tabell där admin kan skapa och redigera planer.
+    - T.ex. kunna ändra "Growth" från 50 till 60 krediter inför framtiden.
 
-#### 🔄 Feature H (Refactor): Multi-file Support
-*Vi behöver ändra från 1 fil till stöd för flera filer.*
+### Feature M: Customer Subscriptions (The State)
+*Koppla en kund till en plan.*
 
-- [x] **Database Migration:**
-    - Skapa ny tabell `pilot_request_attachments` (request_id, file_path, file_name, file_type).
-    - (Optional) Ta bort kolumnen `file_url` från `pilot_requests` när vi är klara.
-- [x] **Frontend Update (`/apply`):**
-    - Ändra file-input till `multiple`.
-    - Visa en lista ("badge list") på valda filer i UI:t innan man skickar.
-- [x] **Backend Update:**
-    - Uppdatera Server Action `submitPilotRequest`.
-    - Iterera igenom alla filer, ladda upp dem till Storage, och skapa rader i `pilot_request_attachments`.
-- [x] **Admin Update:**
-    - Uppdatera detaljvyn så den hämtar och listar alla filer kopplade till requesten.
+- [x] **Database Update (`organizations`):**
+    - Lägg till kolumner: `plan_id` (FK), `subscription_start_date`, `next_refill_date`, `subscription_status` ('active', 'canceled').
+- [x] **UI Update (Org Detail):**
+    - På `/organizations/[id]`: Lägg till en "Subscription"-sektion.
+    - Knapp "Start Subscription": Välj Plan (från Feature L) + Startdatum.
+    - Logik: Sätter `next_refill_date` till en månad framåt.
 
-### Feature I: Admin Settings
-*Grundläggande profilhantering.*
+### Feature N: The Refill Engine (Automation)
+*Det magiska scriptet som körs varje natt.*
 
-- [x] **Settings Page (`/settings`):**
-    - Skapa sida med flikar (Profile, Security).
-- [x] **Profile Form:**
-    - Kunna uppdatera sitt eget Förnamn/Efternamn (i `profiles`-tabellen).
-- [x] **System Status:**
-    - Visa enkel info om systemet (t.ex. "Antal kunder totalt", "System version").
+- [ ] **Edge Function / Cron Job:**
+    - Skapa en funktion (via Supabase Edge Functions eller Next.js API route + Vercel Cron).
+    - **Logik:**
+        1. Hitta alla aktiva orgs där `next_refill_date` <= IDAG.
+        2. För varje org: Skapa en transaktion i `credit_ledger` ("Månadspåfyllning: +50").
+        3. Uppdatera `next_refill_date` med +1 månad.
+    - **Säkerhet:** Endast anropbar med en "Service Role Key" (så ingen kan trigga den utifrån).
+- [ ] **UI Visibility:**
+    - (Optional) Visa "Nästa påfyllning: 2024-02-01" i dashboarden.
 
-## 📝 Att göra (Backlog - Next Up)
-- [ ] **Email Integration:** Skicka automatiskt välkomstmail vid "Approve" (kräver Resend/Sendgrid).
-- [ ] **Search & Filters:** Global sök i headern.
+## 📝 Att göra (Backlog)
+- [ ] **Customer Boilerplate:** Nästa stora fas.
+- [ ] **Email Notifieringar:** Skicka mail när påfyllning skett ("Dina nya krediter är här!").
