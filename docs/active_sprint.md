@@ -24,7 +24,7 @@
 ### Feature P: The Public API
 *Endpointen som kundens app anropar.*
 
-- [ ] **API Route (`app/api/v1/credits/route.ts`):**
+- [x] **API Route (`app/api/v1/credits/route.ts`):**
     - Metod: `GET`.
     - **Auth:** Läs `Authorization: Bearer <KEY>`.
     - **Logik:**
