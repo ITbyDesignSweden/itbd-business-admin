@@ -20,16 +20,16 @@
 #### 🔄 Feature H (Refactor): Multi-file Support
 *Vi behöver ändra från 1 fil till stöd för flera filer.*
 
-- [ ] **Database Migration:**
+- [x] **Database Migration:**
     - Skapa ny tabell `pilot_request_attachments` (request_id, file_path, file_name, file_type).
     - (Optional) Ta bort kolumnen `file_url` från `pilot_requests` när vi är klara.
-- [ ] **Frontend Update (`/apply`):**
+- [x] **Frontend Update (`/apply`):**
     - Ändra file-input till `multiple`.
     - Visa en lista ("badge list") på valda filer i UI:t innan man skickar.
-- [ ] **Backend Update:**
+- [x] **Backend Update:**
     - Uppdatera Server Action `submitPilotRequest`.
     - Iterera igenom alla filer, ladda upp dem till Storage, och skapa rader i `pilot_request_attachments`.
-- [ ] **Admin Update:**
+- [x] **Admin Update:**
     - Uppdatera detaljvyn så den hämtar och listar alla filer kopplade till requesten.
 
 ### Feature I: Admin Settings
