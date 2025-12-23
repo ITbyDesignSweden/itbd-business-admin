@@ -1,8 +1,8 @@
-import { getAllPilotRequests } from "@/actions/pilot-requests"
+import { getAllPilotRequestsWithAttachments } from "@/actions/pilot-requests"
 import { PilotRequestsTable } from "@/components/pilot-requests-table"
 
 export default async function PilotRequestsPage() {
-  const requests = await getAllPilotRequests()
+  const requests = await getAllPilotRequestsWithAttachments()
 
   return (
     <div className="space-y-6">

@@ -21,7 +21,7 @@ function SubmitButton() {
 export default function ApplyPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
 
   async function handleSubmit(formData: FormData) {
@@ -29,17 +29,30 @@ export default function ApplyPage() {
     setUploading(true)
 
     try {
-      let filePath: string | undefined = undefined
+      let uploadedFiles: Array<{ path: string; name: string; type: string; size: number }> = []
 
-      // Upload file if selected
-      if (selectedFile) {
-        const uploadResult = await uploadPilotFile(selectedFile)
-        if (!uploadResult.success) {
-          setError(uploadResult.error || "Kunde inte ladda upp fil")
-          setUploading(false)
-          return
+      // Upload all selected files in parallel for better performance
+      if (selectedFiles.length > 0) {
+        const uploadPromises = selectedFiles.map(file => uploadPilotFile(file))
+        const uploadResults = await Promise.all(uploadPromises)
+
+        // Check if any upload failed
+        for (let i = 0; i < uploadResults.length; i++) {
+          const result = uploadResults[i]
+          if (!result.success) {
+            setError(result.error || `Kunde inte ladda upp ${selectedFiles[i].name}`)
+            setUploading(false)
+            return
+          }
         }
-        filePath = uploadResult.path
+
+        // All uploads succeeded, build the uploaded files array
+        uploadedFiles = uploadResults.map((result, i) => ({
+          path: result.path!,
+          name: selectedFiles[i].name,
+          type: selectedFiles[i].type,
+          size: selectedFiles[i].size,
+        }))
       }
 
       // Submit pilot request via Edge Function (secure, bypasses RLS)
@@ -57,7 +70,7 @@ export default function ApplyPage() {
             company_name: formData.get("company_name") as string,
             org_nr: formData.get("org_nr") as string || undefined,
             description: formData.get("description") as string || undefined,
-            file_path: filePath || undefined,
+            files: uploadedFiles,
           }),
         }
       )
@@ -79,37 +92,49 @@ export default function ApplyPage() {
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ]
+
+    const validFiles: File[] = []
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      
       // Validate file size (10MB)
       if (file.size > 10 * 1024 * 1024) {
-        setError("Filen är för stor. Max 10MB tillåtet.")
+        setError(`${file.name} är för stor. Max 10MB per fil.`)
         e.target.value = ""
         return
       }
 
       // Validate file type
-      const allowedTypes = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-      ]
-
       if (!allowedTypes.includes(file.type)) {
-        setError("Filtyp ej tillåten. Endast PDF, Word, Excel och bilder.")
+        setError(`${file.name} har ej tillåten filtyp. Endast PDF, Word, Excel och bilder.`)
         e.target.value = ""
         return
       }
 
-      setSelectedFile(file)
-      setError(null)
+      validFiles.push(file)
     }
+
+    setSelectedFiles(validFiles)
+    setError(null)
+  }
+
+  function removeFile(index: number) {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
   }
 
   if (success) {
@@ -132,8 +157,8 @@ export default function ApplyPage() {
             <Button
               variant="outline"
               onClick={() => {
-                setSuccess(false)
-                setSelectedFile(null)
+      setSuccess(false)
+      setSelectedFiles([])
               }}
             >
               Skicka en ny ansökan
@@ -235,6 +260,7 @@ export default function ApplyPage() {
                   id="file"
                   name="file"
                   type="file"
+                  multiple
                   onChange={handleFileChange}
                   disabled={uploading}
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp"
@@ -243,13 +269,35 @@ export default function ApplyPage() {
                 <Upload className="h-5 w-5 text-muted-foreground" />
               </div>
               <p className="text-xs text-muted-foreground">
-                PDF, Word, Excel eller bilder. Max 10MB.
+                PDF, Word, Excel eller bilder. Max 10MB per fil. Du kan välja flera filer.
               </p>
-              {selectedFile && (
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                </p>
+              {selectedFiles.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Valda filer ({selectedFiles.length}):
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md px-3 py-1.5"
+                      >
+                        <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <span className="text-xs text-green-700 dark:text-green-300">
+                          {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          className="ml-1 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+                          disabled={uploading}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 

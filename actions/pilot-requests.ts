@@ -17,8 +17,22 @@ export type PilotRequest = {
   status: "pending" | "approved" | "rejected"
 }
 
+export type PilotRequestAttachment = {
+  id: string
+  created_at: string
+  request_id: string
+  file_path: string
+  file_name: string
+  file_type: string | null
+  file_size: number | null
+}
+
 // Note: Public submissions are handled via Edge Function (submit-pilot-request)
 // This file only contains admin-side functions for managing pilot requests
+
+export type PilotRequestWithAttachments = PilotRequest & {
+  attachments: PilotRequestAttachment[]
+}
 
 export async function getAllPilotRequests(): Promise<PilotRequest[]> {
   const supabase = await createClient()
@@ -34,6 +48,57 @@ export async function getAllPilotRequests(): Promise<PilotRequest[]> {
   }
 
   return requests || []
+}
+
+export async function getAllPilotRequestsWithAttachments(): Promise<PilotRequestWithAttachments[]> {
+  const supabase = await createClient()
+
+  // Single query with JOIN - Supabase does this efficiently in the database
+  const { data, error } = await supabase
+    .from("pilot_requests")
+    .select(`
+      *,
+      pilot_request_attachments (
+        id,
+        created_at,
+        request_id,
+        file_path,
+        file_name,
+        file_type,
+        file_size
+      )
+    `)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching pilot requests with attachments:", error)
+    return []
+  }
+
+  if (!data) return []
+
+  // Transform nested data to our type structure
+  return data.map(request => ({
+    ...request,
+    attachments: request.pilot_request_attachments || []
+  }))
+}
+
+export async function getPilotRequestAttachments(requestId: string): Promise<PilotRequestAttachment[]> {
+  const supabase = await createClient()
+
+  const { data: attachments, error } = await supabase
+    .from("pilot_request_attachments")
+    .select("*")
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: true })
+
+  if (error) {
+    console.error("Error fetching attachments:", error)
+    return []
+  }
+
+  return attachments || []
 }
 
 export async function getPendingPilotRequests(): Promise<PilotRequest[]> {

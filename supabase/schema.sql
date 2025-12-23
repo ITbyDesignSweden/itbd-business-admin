@@ -86,3 +86,27 @@ create policy "authenticated_update_pilot_requests"
   using (true)
   with check (true);
 
+-- 6. Pilot Request Attachments (Multi-file support)
+create table public.pilot_request_attachments (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  request_id uuid references public.pilot_requests(id) on delete cascade not null,
+  file_path text not null,
+  file_name text not null,
+  file_type text,
+  file_size integer
+);
+
+alter table public.pilot_request_attachments enable row level security;
+
+-- Only authenticated admins can read/delete attachments
+create policy "authenticated_select_attachments"
+  on pilot_request_attachments for select 
+  to authenticated
+  using (true);
+
+create policy "authenticated_delete_attachments"
+  on pilot_request_attachments for delete 
+  to authenticated
+  using (true);
+

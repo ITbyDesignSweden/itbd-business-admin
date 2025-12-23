@@ -146,27 +146,36 @@ export async function getProjectsByOrgId(orgId: string): Promise<Project[]> {
     return []
   }
 
-  // Calculate actual cost for each project based on credit_ledger transactions
-  const projectsWithCost = await Promise.all(
-    (projects || []).map(async (project) => {
-      const { data: transactions } = await supabase
-        .from("credit_ledger")
-        .select("amount")
-        .eq("project_id", project.id)
+  if (!projects || projects.length === 0) return []
 
-      // Sum all credits (positive and negative) linked to this project
-      // Negative sum = cost, positive sum = credit (show as 0 cost)
-      const sum = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0
-      const totalCost = sum < 0 ? Math.abs(sum) : 0
+  // Fetch all transactions for all projects in a single query (avoid N+1)
+  const projectIds = projects.map(p => p.id)
+  const { data: transactions } = await supabase
+    .from("credit_ledger")
+    .select("project_id, amount")
+    .in("project_id", projectIds)
 
-      return {
-        ...project,
-        cost_credits: totalCost,
+  // Group transactions by project_id
+  const costByProject: Record<string, number> = {}
+  if (transactions) {
+    transactions.forEach(tx => {
+      if (!costByProject[tx.project_id]) {
+        costByProject[tx.project_id] = 0
       }
+      costByProject[tx.project_id] += tx.amount
     })
-  )
+  }
 
-  return projectsWithCost
+  // Apply costs to projects
+  return projects.map(project => {
+    const sum = costByProject[project.id] || 0
+    const totalCost = sum < 0 ? Math.abs(sum) : 0
+
+    return {
+      ...project,
+      cost_credits: totalCost,
+    }
+  })
 }
 
 // Validation schema for adding transaction

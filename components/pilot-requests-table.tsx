@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Fragment } from "react"
 import { Search, FileText, Download, CheckCircle, XCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { updatePilotRequestStatus, getPilotFileUrl } from "@/actions/pilot-requests"
 import { useToast } from "@/components/ui/use-toast"
-import type { PilotRequest } from "@/actions/pilot-requests"
+import type { PilotRequestWithAttachments } from "@/actions/pilot-requests"
 
 interface PilotRequestsTableProps {
-  requests: PilotRequest[]
+  requests: PilotRequestWithAttachments[]
 }
 
 function getStatusColor(status: string) {
@@ -42,6 +42,7 @@ function getStatusLabel(status: string) {
 export function PilotRequestsTable({ requests }: PilotRequestsTableProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const { toast } = useToast()
 
   const filteredRequests = requests.filter((req) =>
@@ -84,7 +85,7 @@ export function PilotRequestsTable({ requests }: PilotRequestsTableProps) {
     setLoadingId(null)
   }
 
-  async function handleDownloadFile(filePath: string, companyName: string) {
+  async function handleDownloadFile(filePath: string, fileName: string) {
     const result = await getPilotFileUrl(filePath)
     
     if (result.success && result.url) {
@@ -96,6 +97,14 @@ export function PilotRequestsTable({ requests }: PilotRequestsTableProps) {
         description: result.error || "Kunde inte hämta fil.",
         variant: "destructive",
       })
+    }
+  }
+
+  function toggleRowExpansion(requestId: string) {
+    if (expandedRow === requestId) {
+      setExpandedRow(null)
+    } else {
+      setExpandedRow(requestId)
     }
   }
 
@@ -134,74 +143,117 @@ export function PilotRequestsTable({ requests }: PilotRequestsTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredRequests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell className="font-medium">
-                    <div>
-                      <div>{request.company_name}</div>
-                      {request.description && (
-                        <div className="text-xs text-muted-foreground line-clamp-1 mt-1">
-                          {request.description}
+              filteredRequests.map((request) => {
+                const requestAttachments = request.attachments
+                const isExpanded = expandedRow === request.id
+                
+                return (
+                  <Fragment key={request.id}>
+                    <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRowExpansion(request.id)}>
+                      <TableCell className="font-medium">
+                        <div>
+                          <div>{request.company_name}</div>
+                          {request.description && (
+                            <div className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                              {request.description}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{request.contact_name}</TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">
-                    {request.email}
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell text-muted-foreground">
-                    {request.org_nr || "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={getStatusColor(request.status)}>
-                      {getStatusLabel(request.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {request.file_path ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDownloadFile(request.file_path!, request.company_name)}
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        <Download className="h-3 w-3" />
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {request.status === "pending" ? (
-                      <div className="flex justify-end gap-2">
+                      </TableCell>
+                      <TableCell>{request.contact_name}</TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground">
+                        {request.email}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell text-muted-foreground">
+                        {request.org_nr || "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={getStatusColor(request.status)}>
+                          {getStatusLabel(request.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => handleStatusUpdate(request.id, "approved")}
-                          disabled={loadingId === request.id}
+                          onClick={() => toggleRowExpansion(request.id)}
                         >
-                          <CheckCircle className="h-4 w-4 mr-1 text-green-600" />
-                          Godkänn
+                          <FileText className="h-4 w-4 mr-1" />
+                          {isExpanded ? "Dölj" : "Visa"} ({requestAttachments.length})
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleStatusUpdate(request.id, "rejected")}
-                          disabled={loadingId === request.id}
-                        >
-                          <XCircle className="h-4 w-4 mr-1 text-red-600" />
-                          Avvisa
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(request.created_at).toLocaleDateString("sv-SE")}
-                      </span>
+                      </TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        {request.status === "pending" ? (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleStatusUpdate(request.id, "approved")}
+                              disabled={loadingId === request.id}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1 text-green-600" />
+                              Godkänn
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleStatusUpdate(request.id, "rejected")}
+                              disabled={loadingId === request.id}
+                            >
+                              <XCircle className="h-4 w-4 mr-1 text-red-600" />
+                              Avvisa
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(request.created_at).toLocaleDateString("sv-SE")}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && (
+                      <TableRow key={`${request.id}-files`}>
+                        <TableCell colSpan={7} className="bg-muted/30 p-4">
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">Bifogade filer:</p>
+                            {requestAttachments.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">Inga filer bifogade</p>
+                            ) : (
+                              <div className="grid gap-2">
+                                {requestAttachments.map((attachment) => (
+                                  <div
+                                    key={attachment.id}
+                                    className="flex items-center justify-between bg-background border rounded-md p-3"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <FileText className="h-5 w-5 text-muted-foreground" />
+                                      <div>
+                                        <p className="text-sm font-medium">{attachment.file_name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {attachment.file_size ? `${(attachment.file_size / 1024 / 1024).toFixed(2)} MB` : "Okänd storlek"}
+                                          {attachment.file_type && ` • ${attachment.file_type}`}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDownloadFile(attachment.file_path, attachment.file_name)}
+                                    >
+                                      <Download className="h-4 w-4 mr-1" />
+                                      Ladda ner
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     )}
-                  </TableCell>
-                </TableRow>
-              ))
+                  </Fragment>
+                )
+              })
             )}
           </TableBody>
         </Table>

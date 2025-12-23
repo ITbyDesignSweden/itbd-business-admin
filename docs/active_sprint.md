@@ -11,27 +11,26 @@
 ## 🚧 Pågående (Current Context)
 
 ### Feature H: Pilot Requests (Inbound Funnel)
-*Hantera förfrågningar från hemsidan så vi slipper skapa organisationer manuellt.*
+*Hantera förfrågningar från hemsidan.*
 
-- [ ] **Database Setup:**
-    - Skapa tabell `pilot_requests` (email, company_name, org_nr, status: 'pending'/'approved'/'rejected').
-    - Sätt upp RLS (Public insert tillåten, Admin select/update tillåten).
-- [ ] **Public Apply Page (`/apply`):**
-    - En enkel, öppen sida (utanför (dashboard)-gruppen) där potentiella kunder kan ansöka.
-    - Formulär som sparar till `pilot_requests`.
-- [ ] **Admin View (`/pilot-requests`):**
-    - En lista i admin-panelen som visar alla 'pending' förfrågningar.
-- [ ] **Approve Action:**
-    - Knapp "Godkänn" på en förfrågan.
-    - **Logik:**
-        1. Uppdatera status till 'approved'.
-        2. Skapa automatiskt en ny rad i `organizations`-tabellen baserat på datan.
-        3. (Bonus) Visa en toast: "Organisation skapad från förfrågan!".
-- [ ] **File Upload Support:**
-    - Aktivera Supabase Storage: Skapa bucket `pilot-uploads`.
-    - Sätt upp Storage Policies: Public upload tillåten, men endast Admin får läsa/ladda ner.
-    - Uppdatera formuläret (`/apply`) med en File Input (drag-and-drop eller enkel knapp).
-    - Validering: Endast PDF/Word/Excel/Bilder, max 10MB.
+- [x] **Database & Storage:** Grundtabell och Bucket uppsatt.
+- [x] **Public Page:** Formulär och Single-file upload.
+- [x] **Admin Page:** Listning av leads.
+
+#### 🔄 Feature H (Refactor): Multi-file Support
+*Vi behöver ändra från 1 fil till stöd för flera filer.*
+
+- [ ] **Database Migration:**
+    - Skapa ny tabell `pilot_request_attachments` (request_id, file_path, file_name, file_type).
+    - (Optional) Ta bort kolumnen `file_url` från `pilot_requests` när vi är klara.
+- [ ] **Frontend Update (`/apply`):**
+    - Ändra file-input till `multiple`.
+    - Visa en lista ("badge list") på valda filer i UI:t innan man skickar.
+- [ ] **Backend Update:**
+    - Uppdatera Server Action `submitPilotRequest`.
+    - Iterera igenom alla filer, ladda upp dem till Storage, och skapa rader i `pilot_request_attachments`.
+- [ ] **Admin Update:**
+    - Uppdatera detaljvyn så den hämtar och listar alla filer kopplade till requesten.
 
 ### Feature I: Admin Settings
 *Grundläggande profilhantering.*
