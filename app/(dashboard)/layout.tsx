@@ -23,12 +23,16 @@ export default async function DashboardLayout({
     try {
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("first_name, last_name")
         .eq("id", user.id)
         .single()
 
       if (!error && profile) {
-        userName = profile.full_name || undefined
+        // Concatenate first_name and last_name
+        const fullName = [profile.first_name, profile.last_name]
+          .filter(Boolean)
+          .join(" ")
+        userName = fullName || undefined
       }
     } catch (error) {
       // Profile query failed - continue without name

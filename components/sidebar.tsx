@@ -24,6 +24,7 @@ interface SidebarProps {
 export function Sidebar({ userEmail, userName }: SidebarProps) {
   const pathname = usePathname()
 
+  // Generate initials from userName (first_name + last_name)
   const initials = userName
     ? userName
         .split(" ")

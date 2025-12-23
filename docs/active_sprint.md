@@ -35,11 +35,11 @@
 ### Feature I: Admin Settings
 *Grundläggande profilhantering.*
 
-- [ ] **Settings Page (`/settings`):**
+- [x] **Settings Page (`/settings`):**
     - Skapa sida med flikar (Profile, Security).
-- [ ] **Profile Form:**
+- [x] **Profile Form:**
     - Kunna uppdatera sitt eget Förnamn/Efternamn (i `profiles`-tabellen).
-- [ ] **System Status:**
+- [x] **System Status:**
     - Visa enkel info om systemet (t.ex. "Antal kunder totalt", "System version").
 
 ## 📝 Att göra (Backlog - Next Up)

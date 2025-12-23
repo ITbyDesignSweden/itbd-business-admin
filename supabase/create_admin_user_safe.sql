@@ -57,8 +57,8 @@ BEGIN
   RETURNING id INTO new_user_id;
 
   -- Skapa profil för användaren
-  INSERT INTO public.profiles (id, email, full_name, role)
-  VALUES (new_user_id, 'admin@itbydesign.se', 'Admin User', 'admin');  -- ← ÄNDRA EMAIL
+  INSERT INTO public.profiles (id, email, first_name, last_name, role)
+  VALUES (new_user_id, 'admin@itbydesign.se', 'Admin', 'User', 'admin');  -- ← ÄNDRA EMAIL & NAMN
   
   RAISE NOTICE 'User created with ID: %', new_user_id;
 END $$;

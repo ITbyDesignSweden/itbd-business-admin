@@ -12,7 +12,8 @@ create table public.organizations (
 create table public.profiles (
   id uuid references auth.users on delete cascade primary key,
   email text not null,
-  full_name text,
+  first_name text,
+  last_name text,
   role text default 'admin' -- I admin-portalen är alla admins
 );
 

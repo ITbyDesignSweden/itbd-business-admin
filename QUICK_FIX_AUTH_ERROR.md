@@ -35,8 +35,8 @@ Kör detta i SQL Editor:
 
 ```sql
 -- Skapa profil för den nya användaren
-INSERT INTO public.profiles (id, email, full_name, role)
-SELECT id, email, 'Admin User', 'admin'
+INSERT INTO public.profiles (id, email, first_name, last_name, role)
+SELECT id, email, 'Admin', 'User', 'admin'
 FROM auth.users
 WHERE email = 'admin@itbydesign.se'
 ON CONFLICT (id) DO NOTHING;
