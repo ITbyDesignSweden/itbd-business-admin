@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getOrganizationWithPlan, getCreditLedgerByOrgId, getProjectsByOrgId } from "@/actions/database"
 import { getActivePlans } from "@/actions/subscription-plans"
+import { getApiKeysByOrgId } from "@/actions/api-keys"
 import { CreditLedgerTable } from "@/components/credit-ledger-table"
 import { TopUpCreditsDialog } from "@/components/top-up-credits-dialog"
 import { EditOrganizationDialog } from "@/components/edit-organization-dialog"
 import { ProjectsTable } from "@/components/projects-table"
 import { CreateProjectDialog } from "@/components/create-project-dialog"
 import { SubscriptionCard } from "@/components/subscription-card"
+import { ApiKeysSection } from "@/components/api-keys-section"
 
 interface OrganizationPageProps {
   params: Promise<{
@@ -49,11 +51,12 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
   const { id } = await params
   
   // Fetch all data in parallel for optimal performance (single roundtrip)
-  const [orgData, transactions, projects, availablePlans] = await Promise.all([
+  const [orgData, transactions, projects, availablePlans, apiKeys] = await Promise.all([
     getOrganizationWithPlan(id),
     getCreditLedgerByOrgId(id),
     getProjectsByOrgId(id),
     getActivePlans(),
+    getApiKeysByOrgId(id),
   ])
 
   if (!orgData) {
@@ -135,6 +138,9 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
           <CreditLedgerTable transactions={transactions} projects={projects} />
         </CardContent>
       </Card>
+
+      {/* API Keys Section */}
+      <ApiKeysSection orgId={organization.id} apiKeys={apiKeys} />
     </div>
   )
 }

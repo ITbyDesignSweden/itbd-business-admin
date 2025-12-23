@@ -1,46 +1,38 @@
-# Active Sprint: Admin Portal - Subscription Engine
+# Active Sprint: Admin Portal - API & Connectivity
 
 **Status:** Planering
-**Mål:** Automatisera månatlig kreditpåfyllning baserat på prenumerationsplaner.
+**Mål:** Göra systemet redo att agera "Mothership" åt kundernas applikationer.
 
 ## ✅ Klart (Done)
-- [x] Business Core: Projects, Costs, Ledger.
-- [x] Admin Control: Pilot Requests, Organization Management.
+- [x] Subscription Engine & Plans.
+- [x] Projects & Ledger.
 
 ## 🚧 Pågående (Current Context)
 
-### Feature L: Plan Management (Product Catalog)
-*Vi måste definiera vad vi säljer i systemet.*
+### Feature O: API Key Management
+*Vi måste kunna generera säkra nycklar åt kunderna.*
 
-- [x] **Database Table (`subscription_plans`):**
-    - Kolumner: `name` (t.ex. 'Growth'), `monthly_credits` (t.ex. 50), `price` (optional för nu), `is_active`.
-- [x] **Admin UI (`/settings/plans`):**
-    - En enkel tabell där admin kan skapa och redigera planer.
-    - T.ex. kunna ändra "Growth" från 50 till 60 krediter inför framtiden.
+- [x] **Database (`api_keys`):**
+    - Tabell: `id`, `org_id`, `key_hash` (vi sparar aldrig nyckeln i klartext!), `is_active`, `created_at`.
+    - Unikt index på `key_hash`.
+- [x] **UI - Organization Settings:**
+    - På `/organizations/[id]`: Lägg till en flik/sektion "API Access".
+    - Knapp: "Generera ny API-nyckel".
+    - **Viktigt:** Visa nyckeln *en gång* (som en toast/modal) och be mig kopiera den. Spara sedan bara hashen.
+    - Knapp: "Revoke Key" (Sätt `is_active = false`).
 
-### Feature M: Customer Subscriptions (The State)
-*Koppla en kund till en plan.*
+### Feature P: The Public API
+*Endpointen som kundens app anropar.*
 
-- [x] **Database Update (`organizations`):**
-    - Lägg till kolumner: `plan_id` (FK), `subscription_start_date`, `next_refill_date`, `subscription_status` ('active', 'canceled').
-- [x] **UI Update (Org Detail):**
-    - På `/organizations/[id]`: Lägg till en "Subscription"-sektion.
-    - Knapp "Start Subscription": Välj Plan (från Feature L) + Startdatum.
-    - Logik: Sätter `next_refill_date` till en månad framåt.
-
-### Feature N: The Refill Engine (Automation)
-*Det magiska scriptet som körs varje natt.*
-
-- [x] **Edge Function / Cron Job:**
-    - Skapa en funktion (via Supabase Edge Functions).
+- [ ] **API Route (`app/api/v1/credits/route.ts`):**
+    - Metod: `GET`.
+    - **Auth:** Läs `Authorization: Bearer <KEY>`.
     - **Logik:**
-        1. Hitta alla aktiva orgs där `next_refill_date` <= IDAG.
-        2. För varje org: Skapa en transaktion i `credit_ledger` ("Månadspåfyllning: +50").
-        3. Uppdatera `next_refill_date` med +1 månad.
-    - **Säkerhet:** Endast anropbar med en "Service Role Key" (så ingen kan trigga den utifrån).
-- [x] **UI Visibility:**
-    - (Optional) Visa "Nästa påfyllning: 2024-02-01" i dashboarden.
+        1. Hasha inkommande nyckel.
+        2. Leta upp aktiv rad i `api_keys`.
+        3. Om giltig: Hämta saldo och plan för kopplad `org_id`.
+        4. Returnera JSON: `{ credits: 50, plan: 'Growth', status: 'active' }`.
+    - **Rate Limit:** (Optional) Enkel spärr för att skydda mot spam.
 
 ## 📝 Att göra (Backlog)
-- [ ] **Customer Boilerplate:** Nästa stora fas.
-- [ ] **Email Notifieringar:** Skicka mail när påfyllning skett ("Dina nya krediter är här!").
+- [ ] **Starta Boilerplate-projektet:** (Nästa stora fas).
