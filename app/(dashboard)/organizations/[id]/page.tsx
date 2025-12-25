@@ -14,7 +14,6 @@ import { ProjectsTable } from "@/components/projects-table"
 import { CreateProjectDialog } from "@/components/create-project-dialog"
 import { SubscriptionCard } from "@/components/subscription-card"
 import { ApiKeysSection } from "@/components/api-keys-section"
-import { InstanceManagementCard } from "@/components/instance-management-card"
 
 interface OrganizationPageProps {
   params: Promise<{
@@ -117,9 +116,6 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
           />
         </div>
       </div>
-
-      {/* SaaS Instance Management */}
-      <InstanceManagementCard organization={organization} />
 
       {/* Projects Section */}
       <Card>
