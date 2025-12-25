@@ -1,35 +1,53 @@
-# Product Roadmap & Backlog - ITBD Admin Portal
+# Product Roadmap & Backlog: ITBD SaaS Factory
 
-Detta är bruttolistan över funktioner vi planerar att bygga.
-När vi är redo att bygga en feature, flyttar vi den till `active_sprint.md`.
+Detta dokument styr den långsiktiga utvecklingen av Admin Portalen och Boilerplaten.
 
-## 🚀 High Priority (Nästa Sprint)
-*Dessa är kritiska för att systemet ska vara komplett.*
+---
 
-- [ ] **Email Integration (Onboarding)**
-    - Skicka inbjudningslänk till kunden automatiskt när man godkänner en Pilot Request.
-- [ ] **Search & Filters**
-    - Global sök i headern (Hitta kund snabbt på Org.nr eller Namn).
+## 🛣 Roadmap
 
-## 🔮 Medium Priority (Snart)
-*Viktiga funktioner för daglig drift.*
+### Fas 1: The Foundation & Inventory (Nuvarande Fokus)
+*Mål: Få kontroll på alla instanser och etablera grunden för "Fabriken".*
+- [x] Grundläggande Admin Dashboard (KPIer, Kunder).
+- [x] Kredit-ledger (Huvudbok) och Transaktioner.
+- [ ] **Provisioning Core:** Spara länkar till Repo/Prod i databasen.
+- [ ] **GitHub Integration (POC):** Koppla Admin Portal till GitHub API.
 
-- [ ] **Export Functions**
-    - Exportera fakturaunderlag till CSV/Excel för bokföring.
-- [ ] **Multi-tenant Admin Support**
-    - Bjuda in fler administratörer till portalen.
+### Fas 2: The Intelligent Architect (AI Integration)
+*Mål: Automatisera merförsäljning och teknisk specifikation via AI.*
+- [ ] **Sprint 1 (Core):** Headless Agent API (Gemini 3.0 Flash) + Chat Widget.
+- [ ] **Sprint 2 (Awareness):** Context Injection (Agenten läser DB-schema & Profil).
+- [ ] **Sprint 3 (Spec):** Integration med Claude 3.5 Sonnet för att generera `spec.md`.
+- [ ] **Sprint 4 (Cold Start):** Automatisk research/profilering vid nykunds-signup.
 
-## 🧊 Icebox / Future Ideas (Senare)
-*Bra idéer ("Nice to have") som vi tar när grunden sitter.*
+### Fas 3: Business Automation (Scale)
+*Mål: Självgående fakturering och övervakning.*
+- [ ] Faktureringsunderlag baserat på Subscription Plans.
+- [ ] Automatisk påminnelse vid lågt kreditsaldo.
+- [ ] System Health Monitoring (Ping av kund-instanser).
 
-- [ ] **Notifications System**
-    - Notis när en kunds krediter understiger 10p.
-- [ ] **Analytics Dashboard**
-    - Grafer över kreditanvändning och MRR.
-- [ ] **Customer Portal Boilerplate**
-    - Bygga mallen för kundens egen app (se `docs/boilerplate_wishlist.md`).
+---
 
-## ✅ Nyligen Slutfört
-- [x] Projects Management
-- [x] Credit Ledger Page (`/ledger`)
-- [x] Organizations Detail Page
+## 📂 Feature Backlog (Prioriterad)
+
+### High Priority
+1. **AI Chat API (`/api/chat`):** Centralhjärnan för alla kund-botar.
+2. **AI Widget Component:** UI-komponenten som exporteras till kunderna.
+3. **GitHub "Create Repo" Action:** Automatisera kloning av Boilerplate.
+4. **Subscription Refill Engine:** Hantera månatlig påfyllning av krediter.
+
+### Medium Priority
+1. **Pilot Request Funnel:** Förfina uppladdning av filer/krav.
+2. **API Key Management:** UI för att rotera/skapa API-nycklar åt kunder.
+3. **Audit Logs:** Vem ändrade vad i admin-portalen?
+
+### Low Priority / Future Ideas
+1. **Mobile App:** En "Companion App" för administratörer.
+2. **White-label Admin:** Låta slutkunder logga in i en begränsad del av Admin Portalen?
+
+---
+
+## 🧠 Arkitektoniska Principer
+1. **Headless AI:** All intelligens bor i Admin Portalen. Klienten är bara ett skal.
+2. **The Ledger is Truth:** All förbrukning måste loggas som transaktioner.
+3. **Supabase Native:** Använd RLS, Edge Functions och Webhooks där det går.
