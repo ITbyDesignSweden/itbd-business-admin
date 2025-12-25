@@ -12,6 +12,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 # Supabase Service Role Key (Feature P: Public API)
 # ⚠️ VARNING: Denna nyckel ger full åtkomst till databasen. Dela ALDRIG publikt!
 SUPABASE_SERVICE_ROLE_KEY=
+
+# Google AI (Gemini) Configuration (Feature: AI Architect)
+# Skaffa API-nyckel från: https://aistudio.google.com/app/apikey
+GOOGLE_GENERATIVE_AI_API_KEY=
 ```
 
 ## Var hittar jag nycklarna?

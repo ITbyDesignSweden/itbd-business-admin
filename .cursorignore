@@ -1,0 +1,41 @@
+# --- Dependencies & Lock Files ---
+# Dessa är de största "tjuvarna" av tokens. 
+# AI:n behöver bara läsa package.json för att förstå beroenden.
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# --- Build Artifacts ---
+# Genererad kod som vi inte ska redigera.
+.next/
+out/
+build/
+dist/
+coverage/
+
+# --- Static Assets ---
+# Bilder och ikoner tar onödig plats i kontexten.
+public/
+*.svg
+*.png
+*.jpg
+*.ico
+
+# --- Supabase & Database ---
+# Vi vill oftast att AI:n tittar på schema.sql eller active definitions,
+# inte tusentals rader av gammal migreringshistorik.
+supabase/migrations/
+supabase/.temp/
+
+# --- System & Logs ---
+.git/
+.DS_Store
+*.log
+.vercel/
+
+# --- Documentation ---
+# Ignorera arkiv eller tunga mötesanteckningar som inte är relevanta för kodning.
+docs/archive/
+docs/meeting_notes/
