@@ -1,8 +1,34 @@
 import { google } from '@ai-sdk/google';
-import { streamText, convertToModelMessages, UIMessage } from 'ai';
+import { 
+  streamText, 
+  convertToModelMessages, 
+  UIMessage, 
+  createUIMessageStream, 
+  createUIMessageStreamResponse 
+} from 'ai';
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { submitFeatureRequestTool } from '@/lib/ai-tools/submit-feature-request';
+
+/**
+ * Define type for custom messages if needed (AI SDK 6)
+ */
+export type CustomUIMessage = UIMessage<
+  {
+    modelId?: string;
+    usage?: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+  },
+  {
+    notification: {
+      message: string;
+      level: 'info' | 'success' | 'warning' | 'error';
+    };
+  }
+>;
 
 /**
  * Fetch active AI prompt from database
@@ -194,19 +220,71 @@ export async function POST(req: NextRequest) {
     // Konvertera UIMessages till model messages
     const modelMessages = await convertToModelMessages(messages);
 
-    // Streama AI-svar med AI Tools
-    const result = streamText({
-      model,
-      system: contextualPrompt,
-      messages: modelMessages,
-      temperature: 0.7,
-      tools: {
-        submit_feature_request: submitFeatureRequestTool(projectId),
+    // Skapa en UI Message Stream (AI SDK 6)
+    const stream = createUIMessageStream<CustomUIMessage>({
+      execute: ({ writer }) => {
+        // 1. Skicka initial status (transient - sparas inte i historiken)
+        writer.write({
+          type: 'data-notification',
+          data: { 
+            message: 'Ansluter till ITBD Intelligent Architect...', 
+            level: 'info' 
+          },
+          transient: true,
+        });
+
+        // 2. Starta text-streaming
+        const result = streamText({
+          model,
+          system: contextualPrompt,
+          messages: modelMessages,
+          temperature: 0.7,
+          tools: {
+            submit_feature_request: submitFeatureRequestTool(projectId),
+          },
+          onFinish: () => {
+            // Skicka en bekräftelse när AI:n är klar
+            writer.write({
+              type: 'data-notification',
+              data: { 
+                message: 'Svar genererat', 
+                level: 'success' 
+              },
+              transient: true,
+            });
+          }
+        });
+
+        // 3. Koppla ihop resultatet med vår stream
+        writer.merge(result.toUIMessageStream());
+
+        // 4. Skicka metadata efter att streamen är klar
+        (async () => {
+          try {
+            const usage = await result.usage;
+            const response = await result.response;
+            
+            writer.write({
+              type: 'message-metadata',
+              messageMetadata: {
+                modelId: response.modelId,
+                usage: {
+                  promptTokens: usage.inputTokens ?? 0,
+                  completionTokens: usage.outputTokens ?? 0,
+                  totalTokens: (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0),
+                },
+              },
+            });
+          } catch (e) {
+            console.error('Error sending metadata:', e);
+          }
+        })();
       },
     });
 
-    // Returnera UI message stream response (AI SDK 6)
-    return result.toUIMessageStreamResponse({
+    // Returnera UI message stream response
+    return createUIMessageStreamResponse({
+      stream,
       headers: corsHeaders,
     });
 
