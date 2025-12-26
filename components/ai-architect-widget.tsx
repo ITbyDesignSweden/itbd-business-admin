@@ -10,6 +10,8 @@ import { toast } from "sonner"
 import { Bot, Send, X, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getSchemaContext } from "@/actions/schema-context"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 interface AiArchitectWidgetProps {
   projectId: string
@@ -45,6 +47,14 @@ export function AiArchitectWidget({
   })
 
   const { messages, sendMessage, status, stop, error } = chat
+
+  // Helper function to get text content from a message
+  const getMessageContent = (message: any) => {
+    return message.parts
+      .filter((part: any) => part.type === "text")
+      .map((part: any) => part.text)
+      .join("")
+  }
 
   // Fetch schema context on mount
   useEffect(() => {
@@ -178,13 +188,34 @@ export function AiArchitectWidget({
                         : "bg-muted"
                     )}
                   >
-                    <div className="whitespace-pre-wrap leading-relaxed text-[13px]">
-                      {message.parts.map((part, idx) => {
-                        if (part.type === "text") {
-                          return <span key={idx}>{part.text}</span>
-                        }
-                        return null
-                      })}
+                    <div className={cn(
+                      "leading-relaxed text-[13px]",
+                      message.role === "user" ? "" : "prose prose-sm dark:prose-invert max-w-none"
+                    )}>
+                      {message.role === "user" ? (
+                        <div className="whitespace-pre-wrap">{getMessageContent(message)}</div>
+                      ) : (
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                            ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                            li: ({ children }) => <li className="mb-1">{children}</li>,
+                            h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                            h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                            code: ({ children }) => (
+                              <code className="bg-muted-foreground/20 rounded px-1 py-0.5 font-mono text-xs">
+                                {children}
+                              </code>
+                            ),
+                            strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+                          }}
+                        >
+                          {getMessageContent(message)}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   </div>
 
