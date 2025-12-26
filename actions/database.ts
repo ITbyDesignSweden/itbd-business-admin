@@ -359,6 +359,7 @@ const updateOrganizationSchema = z.object({
   org_nr: z.string().optional(),
   status: z.enum(["pilot", "active", "churned"]),
   business_profile: z.string().optional(),
+  custom_ai_instructions: z.string().optional(),
 })
 
 export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>
@@ -380,6 +381,7 @@ export async function updateOrganization(
         org_nr: validatedData.org_nr || null,
         status: validatedData.status,
         business_profile: validatedData.business_profile || null,
+        custom_ai_instructions: validatedData.custom_ai_instructions || null,
       })
       .eq("id", validatedData.id)
       .select()

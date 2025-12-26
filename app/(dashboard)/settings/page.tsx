@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ChevronRight, CreditCard, RefreshCw } from "lucide-react"
+import { ChevronRight, CreditCard, RefreshCw, Brain } from "lucide-react"
 
 export default async function SettingsPage() {
   const profile = await getCurrentProfile()
@@ -63,6 +63,20 @@ export default async function SettingsPage() {
                 <div className="text-left">
                   <div className="font-medium">Kreditpåfyllning</div>
                   <div className="text-sm text-muted-foreground">Automatisk månatlig påfyllning</div>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </Link>
+          <Link href="/settings/prompts">
+            <Button variant="ghost" className="w-full justify-between h-auto py-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-purple-500/10 p-2">
+                  <Brain className="h-4 w-4 text-purple-500" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium">AI Prompts</div>
+                  <div className="text-sm text-muted-foreground">Hantera AI-beteende och instruktioner</div>
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />

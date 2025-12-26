@@ -62,6 +62,7 @@ export function EditOrganizationDialog({ organization }: EditOrganizationDialogP
       org_nr: formData.get("org_nr") as string,
       status: status,
       business_profile: formData.get("business_profile") as string,
+      custom_ai_instructions: formData.get("custom_ai_instructions") as string,
     }
 
     const result = await updateOrganization(input)
@@ -149,6 +150,19 @@ export function EditOrganizationDialog({ organization }: EditOrganizationDialogP
               />
               <p className="text-xs text-muted-foreground">
                 Används för att ge AI:n kontext om kundens verksamhet
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="custom_ai_instructions">Kundspecifika AI-instruktioner</Label>
+              <Textarea
+                id="custom_ai_instructions"
+                name="custom_ai_instructions"
+                placeholder="Lägg till specialinstruktioner för hur AI:n ska hantera denna kund (valfritt)..."
+                defaultValue={organization.custom_ai_instructions || ""}
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground">
+                Extra regler som injiceras i AI-prompten för denna specifika kund
               </p>
             </div>
           </div>

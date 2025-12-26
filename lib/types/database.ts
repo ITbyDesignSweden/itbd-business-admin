@@ -25,6 +25,7 @@ export interface Organization {
   github_repo_url: string | null
   supabase_project_ref: string | null
   business_profile: string | null
+  custom_ai_instructions: string | null
 }
 
 export interface Profile {

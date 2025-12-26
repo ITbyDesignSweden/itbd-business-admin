@@ -2,17 +2,38 @@ import { google } from '@ai-sdk/google';
 import { streamText, convertToModelMessages, UIMessage } from 'ai';
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { submitFeatureRequestTool } from '@/lib/ai-tools/submit-feature-request';
+
+/**
+ * Fetch active AI prompt from database
+ */
+async function getActivePrompt(): Promise<string> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('ai_prompts')
+    .select('content')
+    .eq('is_active', true)
+    .single();
+
+  if (error || !data) {
+    console.warn('Failed to fetch active prompt, using fallback:', error);
+    return getFallbackSystemPrompt();
+  }
+
+  return data.content;
+}
 
 /**
  * Build contextual system prompt with organization data
  */
-function buildContextualPrompt(
+async function buildContextualPrompt(
   orgName: string,
   businessProfile: string | null,
   credits: number | null,
+  customInstructions: string | null,
   schema?: string
-): string {
-  const basePrompt = getBaseSystemPrompt();
+): Promise<string> {
+  const basePrompt = await getActivePrompt();
   
   const contextSection = `
 ### KUNDKONTEXT (Aktuell Session)
@@ -28,14 +49,18 @@ ${schema}
 **VIKTIGT:** Använd denna struktur för att ge konkreta förslag. Om kunden frågar "Kan jag spåra X?", kolla om det redan finns i schemat. Om inte, föreslå att lägga till det.
 ` : ''}
 
+${customInstructions ? `### KUNDSPECIFIKA INSTRUKTIONER
+${customInstructions}
+` : ''}
+
 ---
 `;
 
   return contextSection + basePrompt;
 }
 
-// System prompt för AI Architect (v1 - The Salesman)
-function getBaseSystemPrompt(): string {
+// Fallback system prompt (används om DB-fetch misslyckas)
+function getFallbackSystemPrompt(): string {
   return `Du är ITBD Intelligent Architect.
 
 ROLL: Senior Verksamhetsutvecklare & Affärsstrateg för IT by Design.
@@ -65,7 +90,7 @@ MÅL: Identifiera kundens verksamhetsbehov ("Vi tappar bort följesedlar") och �
 1. Lyssna på kundens behov.
 2. Ställ följdfrågor tills du förstår processen.
 3. Föreslå en lösning beskriven med "verksamhetsord" och ge ett pris (t.ex. "Detta är en Medium-funktion, 10 krediter").
-4. När kunden säger JA: Generera den tekniska specifikationen via ett "Function Call" (dolt för kunden).
+4. När kunden säger JA: Använd verktyget submit_feature_request för att registrera önskemålet.
 
 ### EXEMPEL PÅ TONLÄGE
 *Användare:* "Jag vill bygga ett kundregister."
@@ -110,12 +135,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validera projectId mot databasen och hämta business profile + credits
+    // Validera projectId mot databasen och hämta business profile + credits + custom instructions
     // Use VIEW to get total_credits calculated from credit_ledger
     const supabase = await createClient();
     const { data: organization, error } = await supabase
       .from('organizations_with_credits')
-      .select('id, name, business_profile, total_credits')
+      .select('id, name, business_profile, total_credits, custom_ai_instructions')
       .eq('id', projectId)
       .single();
 
@@ -142,11 +167,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Bygg dynamisk system prompt med kontext
-    const contextualPrompt = buildContextualPrompt(
+    // Bygg dynamisk system prompt med kontext (inkl. custom AI instructions)
+    const contextualPrompt = await buildContextualPrompt(
       organization.name,
       organization.business_profile,
       organization.total_credits,
+      organization.custom_ai_instructions,
       schema
     );
 
@@ -154,6 +180,7 @@ export async function POST(req: NextRequest) {
     console.log('Organization:', organization.name);
     console.log('Business Profile:', organization.business_profile || 'Not set');
     console.log('Credits:', organization.total_credits);
+    console.log('Custom AI Instructions:', organization.custom_ai_instructions ? 'Yes' : 'No');
 
     // Skapa AI-modellen
     const model = google('gemini-3-flash-preview');
@@ -161,12 +188,15 @@ export async function POST(req: NextRequest) {
     // Konvertera UIMessages till model messages
     const modelMessages = await convertToModelMessages(messages);
 
-    // Streama AI-svar
+    // Streama AI-svar med AI Tools
     const result = streamText({
       model,
       system: contextualPrompt,
       messages: modelMessages,
       temperature: 0.7,
+      tools: {
+        submit_feature_request: submitFeatureRequestTool(projectId),
+      },
     });
 
     // Returnera UI message stream response (AI SDK 6)
