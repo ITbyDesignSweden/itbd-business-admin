@@ -7,6 +7,7 @@ import { z } from "zod"
 // Validation schema for instance data
 const instanceSchema = z.object({
   production_url: z.string().url().nullable().optional(),
+  website_url: z.string().url().nullable().optional(),
   github_repo_url: z.string().url().nullable().optional(),
   supabase_project_ref: z.string().nullable().optional(),
 })
@@ -18,6 +19,7 @@ export async function updateInstanceDetails(
   orgId: string,
   data: {
     production_url?: string | null
+    website_url?: string | null
     github_repo_url?: string | null
     supabase_project_ref?: string | null
   }

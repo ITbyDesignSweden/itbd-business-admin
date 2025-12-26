@@ -22,6 +22,7 @@ export interface Organization {
   subscription_status: SubscriptionStatus
   status: OrganizationStatus
   production_url: string | null
+  website_url: string | null
   github_repo_url: string | null
   supabase_project_ref: string | null
   business_profile: string | null

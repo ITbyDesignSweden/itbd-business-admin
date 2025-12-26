@@ -2,12 +2,12 @@
 
 **Status:** 🟢 Planerad
 **Startdatum:** 2025-12-30
-**Fokus:** Automatisera insamlingen av kundinsikter. Från "Tomt blad" till "Full Profil" på sekunder via Web Scraping + AI Analys.
+**Fokus:** Automatisera kundinsikter. Ersätt manuell scraper med **Google Search Grounding** för att skapa en rikare företagsprofil automatiskt.
 
 ---
 
 ## 🎯 Sprint Mål
-Att ge systemet "ögon". Vi ska bygga en funktion som utgår från kundens URL, skannar deras hemsida, och låter Gemini sammanställa en **Business Profile** automatiskt. Detta fyller `organizations.business_profile` utan att vi behöver lyfta ett finger.
+Att ge systemet "ögon" via Googles index. Vi ska bygga en funktion som tar kundens namn/url och låter Gemini använda **Google Search** för att sammanställa en komplett **Business Profile** (Verksamhet, SNI-kod, Storlek) och spara ner det i databasen.
 
 ---
 
@@ -17,79 +17,53 @@ Att ge systemet "ögon". Vi ska bygga en funktion som utgår från kundens URL, 
 *Säkerställa att vi har plats för datan.*
 
 - [ ] **Migration (om det saknas):**
-  - Kontrollera att `organizations` har kolumnen `website_url` (TEXT). Om inte, skapa den.
+  - Kontrollera att `organizations` har kolumnen `website_url` (TEXT).
   - (Vi har redan `business_profile` från Sprint 2).
 
-### 2. The Scraper (`lib/scraper.ts`)
-*En enkel, robust funktion för att hämta råtext från webben.*
+### 2. The Analyst (AI Server Action)
+*Hjärnan som söker och tolkar (Nu utan scraper).*
 
-- [ ] **Installera:** `cheerio` (för att parsa HTML server-side).
-- [ ] **Utility Function:**
-  - `scrapeWebsite(url: string)`:
-  - Ska göra en `fetch` mot URL:en.
-  - Ska använda Cheerio för att extrahera relevant text (`p`, `h1-h6`, `meta description`).
-  - Ska rensa bort "brus" (navigering, footers, scripts).
-  - Returnera en ren textsträng (max ca 20k tecken).
-
-### 3. The Analyst (AI Server Action)
-*Hjärnan som tolkar datan.*
-
+- [ ] **Uppdatera `ai/google-provider`:**
+  - Aktivera `useSearchGrounding: true` i Vercel AI SDK-konfigurationen (eller via Google AI Studio settings om vi använder API-nyckel direkt).
 - [ ] **Server Action `enrichOrganizationProfile(orgId)`:**
-  - 1. Hämta `website_url` från databasen.
-  - 2. Kör `scrapeWebsite`.
-  - 3. Anropa **Gemini 3.0 Flash** med prompt:
-    *"Analysera denna hemsidetext. Sammanfatta bolagets verksamhet, bransch (SNI-kod om möjligt), och storlek till en kort 'Business Profile' på svenska. Formatet ska vara anpassat för att ge kontext till en sälj-AI."*
-  - 4. Spara resultatet direkt till `organizations.business_profile`.
+  - 1. Hämta `name` och `website_url` från databasen.
+  - 2. Anropa **Gemini 3.0 Flash** med prompt:
+    *"Använd Google Search för att hitta information om bolaget [NAMN] (Webb: [URL]). Sammanfatta deras verksamhet, bransch och målgrupp till en kort 'Business Profile' på svenska. Formatet ska vara säljstödjande."*
+  - 3. Spara resultatet direkt till `organizations.business_profile`.
 
-### 4. UI Integration (Admin Portal)
+### 3. UI Integration (Admin Portal)
 *Knappen som startar magin.*
 
 - [ ] **Uppdatera `/organizations/[id]`:**
   - Lägg till en knapp: "✨ Auto-Enrich Profile" bredvid profil-fältet.
-  - Visa en laddnings-indikator ("Scannar hemsida...") medan Server Action körs.
+  - Visa laddnings-indikator ("Söker på nätet...") medan AI jobbar.
   - Uppdatera fältet automatiskt när det är klart.
 
 ---
 
 ## 🛠 Technical Notes
 
-### Scraper Logic (Cheerio)
-Vi behöver inte en tung browser (Puppeteer). Rå HTML räcker för textanalys.
+### Implementation med Vercel AI SDK (Google Provider)
+Vi behöver ingen scraper. Vi använder verktyget som redan finns i modellen.
 
 ```typescript
-import * as cheerio from 'cheerio';
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
 
-export async function scrapeWebsite(url: string) {
-  try {
-    const res = await fetch(url, { headers: { 'User-Agent': 'ITBD-Bot/1.0' } });
-    const html = await res.text();
-    const $ = cheerio.load(html);
+export async function enrichOrganization(orgName: string, websiteUrl: string) {
+  
+  const { text } = await generateText({
+    model: google('gemini-3.0-flash-preview', {
+      useSearchGrounding: true // <-- MAGIN HÄNDER HÄR
+    }),
+    system: 'Du är en affärsanalytiker. Använd Google Search för att verifiera fakta.',
+    prompt: `Skapa en företagsprofil för: ${orgName}. Hemsida: ${websiteUrl}.
+             Inkludera:
+             1. Verksamhetsbeskrivning (Vad säljer de?)
+             2. Trolig SNI-kod/Bransch.
+             3. Storlek (om tillgängligt).
+             Svara kortfattat på svenska.`
+  });
 
-    // Ta bort skräp för att spara tokens
-    $('script, style, nav, footer, svg, button, form').remove();
-
-    // Hämta text och städa whitespace
-    const text = $('body').text().replace(/\s+/g, ' ').trim();
-    
-    // Begränsa storleken så vi inte spränger context window (Gemini klarar mycket, men onödigt att skicka spam)
-    return text.slice(0, 20000); 
-  } catch (e) {
-    console.error("Scrape failed", e);
-    return null;
-  }
+  return text;
 }
-```
-
-### AI Prompt Strategy
-```typescript
-const prompt = `
-INPUT: Text från bolagets hemsida.
-TASK: Skapa en 'Business Persona' för detta bolag.
-OUTPUT: En kort text (max 50-75 ord) som beskriver:
-1. Vad de säljer/gör.
-2. Vilken bransch de tillhör.
-3. Deras troliga tekniska mognad (baserat på hur de beskriver sig).
-
-TEXT: ${scrapedText}
-`;
-```
