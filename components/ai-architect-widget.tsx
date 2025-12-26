@@ -29,6 +29,16 @@ export function AiArchitectWidget({
 
   const chat = useChat({
     // api: apiUrl, // Borttaget då det verkar krocka med vissa typdefinitioner i v6, använder default /api/chat
+    onData: (dataPart) => {
+      // Fånga upp transienta notifikationer från servern
+      if (dataPart.type === 'data-notification') {
+        const { message, level } = (dataPart as any).data;
+        if (level === 'success') toast.success(message);
+        else if (level === 'error') toast.error(message);
+        else if (level === 'warning') toast.warning(message);
+        else toast.info(message);
+      }
+    },
     onError: (error) => {
       console.error("Chat error:", error)
       if (error.message.includes("401")) {
@@ -47,18 +57,6 @@ export function AiArchitectWidget({
   })
 
   const { messages, sendMessage, status, stop, error } = chat
-
-  // Förbättrad helper för att hämta text oavsett format
-  const getMessageContent = (message: any) => {
-    if (message.content) return message.content;
-    if (message.parts) {
-      return message.parts
-        .filter((part: any) => part.type === "text")
-        .map((part: any) => part.text)
-        .join("")
-    }
-    return "";
-  };
 
   // Fetch schema context on mount
   useEffect(() => {
@@ -184,85 +182,119 @@ export function AiArchitectWidget({
                     </div>
                   )}
                   
-                  {/* Rendera bubblan alltid för assistant-meddelanden, även om de är tomma vid första anropet */}
-                  {(message.role === "user" || getMessageContent(message) || (message.toolInvocations && message.toolInvocations.length > 0)) && (
+                  {/* Rendera bubblan för meddelanden */}
+                  <div className="flex flex-col gap-1 max-w-[85%]">
                     <div
                       className={cn(
-                        "rounded-lg px-4 py-2.5 max-w-[85%] break-words",
+                        "rounded-lg px-4 py-2.5 break-words",
                         message.role === "user"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted"
                       )}
                     >
-                      {/* Textinnehåll */}
-                      {getMessageContent(message) && (
-                        <div className={cn(
-                          "leading-relaxed text-[13px]",
-                          message.role === "user" ? "" : "prose prose-sm dark:prose-invert max-w-none"
-                        )}>
-                          {message.role === "user" ? (
-                            <div className="whitespace-pre-wrap">{getMessageContent(message)}</div>
-                          ) : (
-                            <ReactMarkdown 
-                              remarkPlugins={[remarkGfm]}
-                              components={{
-                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                                li: ({ children }) => <li className="mb-1">{children}</li>,
-                                h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-                                h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
-                                h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
-                                code: ({ children }) => (
-                                  <code className="bg-muted-foreground/20 rounded px-1 py-0.5 font-mono text-xs">
-                                    {children}
-                                  </code>
-                                ),
-                                strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
-                              }}
-                            >
-                              {getMessageContent(message)}
-                            </ReactMarkdown>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Tool Invocations */}
-                      {message.toolInvocations?.map((toolInvocation: any) => {
-                        const { toolCallId, state } = toolInvocation;
-
-                        if (state === 'call') {
-                          return (
-                            <div key={toolCallId} className="flex items-center gap-2 mt-2 text-xs text-muted-foreground italic">
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                              Skapar teknisk specifikation...
-                            </div>
-                          );
-                        }
-
-                        if (state === 'result' && toolInvocation.toolName === 'submit_feature_request') {
-                          const { result } = toolInvocation;
-                          
-                          // Visa kort bekräftelse i UI (detaljerat svar kommer från AI:n)
-                          if (result.success) {
+                      <div className="space-y-3">
+                        {message.parts?.map((part: any, index: number) => {
+                          // 1. Rendera Text-delar
+                          if (part.type === "text") {
                             return (
-                              <div key={toolCallId} className="mt-2 p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400">
-                                ✅ Teknisk specifikation skapad (ID: {result.document_id?.slice(0, 8)}...)
-                              </div>
-                            );
-                          } else {
-                            return (
-                              <div key={toolCallId} className="mt-2 p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px] text-red-700 dark:text-red-400">
-                                ❌ {result.error || 'Fel vid registrering'}
+                              <div 
+                                key={index}
+                                className={cn(
+                                  "leading-relaxed text-[13px]",
+                                  message.role === "user" ? "" : "prose prose-sm dark:prose-invert max-w-none"
+                                )}
+                              >
+                                {message.role === "user" ? (
+                                  <div className="whitespace-pre-wrap">{part.text}</div>
+                                ) : (
+                                  <ReactMarkdown 
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                      ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                                      ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                                      li: ({ children }) => <li className="mb-1">{children}</li>,
+                                      h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                                      h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                                      h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                                      code: ({ children }) => (
+                                        <code className="bg-muted-foreground/20 rounded px-1 py-0.5 font-mono text-xs">
+                                          {children}
+                                        </code>
+                                      ),
+                                      strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+                                    }}
+                                  >
+                                    {part.text}
+                                  </ReactMarkdown>
+                                )}
                               </div>
                             );
                           }
-                        }
 
-                        return null;
-                      })}
+                          // 2. Rendera Verktygs-delar (Tool Invocations)
+                          if (part.type === "tool-invocation") {
+                            const { toolInvocation } = part;
+                            const { toolCallId, state, toolName } = toolInvocation;
+
+                            if (state === 'call') {
+                              return (
+                                <div key={toolCallId} className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  {toolName === 'submit_feature_request' ? 'Skapar teknisk specifikation...' : `Kör ${toolName}...`}
+                                </div>
+                              );
+                            }
+
+                            if (state === 'result' && toolName === 'submit_feature_request') {
+                              const { result } = toolInvocation;
+                              if (result.success) {
+                                return (
+                                  <div key={toolCallId} className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400">
+                                    ✅ Teknisk specifikation skapad (ID: {result.document_id?.slice(0, 8)}...)
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div key={toolCallId} className="p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px] text-red-700 dark:text-red-400">
+                                    ❌ {result.error || 'Fel vid registrering'}
+                                  </div>
+                                );
+                              }
+                            }
+                          }
+
+                          return null;
+                        })}
+
+                        {/* Fallback för gamla meddelanden utan parts (bakåtkompatibilitet) */}
+                        {!message.parts && message.content && (
+                          <div className={cn(
+                            "leading-relaxed text-[13px]",
+                            message.role === "user" ? "" : "prose prose-sm dark:prose-invert max-w-none"
+                          )}>
+                            {message.role === "user" ? (
+                              <div className="whitespace-pre-wrap">{message.content}</div>
+                            ) : (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {message.content}
+                              </ReactMarkdown>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
+
+                    {/* Visa Metadata (Tokens/Model) för assistant-meddelanden */}
+                    {message.role === "assistant" && message.metadata && (
+                      <div className="px-1 flex items-center gap-2 text-[10px] text-muted-foreground opacity-60">
+                        <span>{message.metadata.modelId}</span>
+                        {message.metadata.usage && (
+                          <span>• {message.metadata.usage.totalTokens} tokens</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {message.role === "user" && (
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
