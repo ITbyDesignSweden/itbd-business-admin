@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -60,6 +61,7 @@ export function EditOrganizationDialog({ organization }: EditOrganizationDialogP
       name: formData.get("name") as string,
       org_nr: formData.get("org_nr") as string,
       status: status,
+      business_profile: formData.get("business_profile") as string,
     }
 
     const result = await updateOrganization(input)
@@ -135,6 +137,19 @@ export function EditOrganizationDialog({ organization }: EditOrganizationDialogP
                   <SelectItem value="churned">Avslutad</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="business_profile">Affärsprofil</Label>
+              <Textarea
+                id="business_profile"
+                name="business_profile"
+                placeholder="Beskriv verksamheten, bransch och användningsområde för AI-kontext..."
+                defaultValue={organization.business_profile || ""}
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground">
+                Används för att ge AI:n kontext om kundens verksamhet
+              </p>
             </div>
           </div>
           <DialogFooter>

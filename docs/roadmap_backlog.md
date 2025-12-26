@@ -10,12 +10,12 @@ Detta dokument styr den långsiktiga utvecklingen av Admin Portalen och Boilerpl
 *Mål: Få kontroll på alla instanser och etablera grunden för "Fabriken".*
 - [x] Grundläggande Admin Dashboard (KPIer, Kunder).
 - [x] Kredit-ledger (Huvudbok) och Transaktioner.
-- [ ] **Provisioning Core:** Spara länkar till Repo/Prod i databasen.
-- [ ] **GitHub Integration (POC):** Koppla Admin Portal till GitHub API.
+- [x] **Provisioning Core:** Spara länkar till Repo/Prod i databasen.
+- [x] **GitHub Integration (POC):** Koppla Admin Portal till GitHub API.
 
 ### Fas 2: The Intelligent Architect (AI Integration)
 *Mål: Automatisera merförsäljning och teknisk specifikation via AI.*
-- [ ] **Sprint 1 (Core):** Headless Agent API (Gemini 3.0 Flash) + Chat Widget.
+- [x] **Sprint 1 (Core):** Headless Agent API (Gemini 3.0 Flash) + Chat Widget.
 - [ ] **Sprint 2 (Awareness):** Context Injection (Agenten läser DB-schema & Profil).
 - [ ] **Sprint 3 (Spec):** Integration med Claude 3.5 Sonnet för att generera `spec.md`.
 - [ ] **Sprint 4 (Cold Start):** Automatisk research/profilering vid nykunds-signup.

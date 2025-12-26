@@ -5,7 +5,8 @@ create table public.organizations (
   name text not null,
   org_nr text,
   subscription_plan text check (subscription_plan is null or subscription_plan in ('care', 'growth', 'scale')),
-  status text default 'pilot' check (status in ('pilot', 'active', 'churned'))
+  status text default 'pilot' check (status in ('pilot', 'active', 'churned')),
+  business_profile text -- AI Context: Business description for personalization
 );
 
 -- 2. Profiles (Admin Users)

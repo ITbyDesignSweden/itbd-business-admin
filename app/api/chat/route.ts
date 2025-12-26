@@ -3,8 +3,40 @@ import { streamText, convertToModelMessages, UIMessage } from 'ai';
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+/**
+ * Build contextual system prompt with organization data
+ */
+function buildContextualPrompt(
+  orgName: string,
+  businessProfile: string | null,
+  credits: number | null,
+  schema?: string
+): string {
+  const basePrompt = getBaseSystemPrompt();
+  
+  const contextSection = `
+### KUNDKONTEXT (Aktuell Session)
+- **Kund:** ${orgName}
+- **Verksamhet:** ${businessProfile || "Okänd verksamhet (fråga kunden om deras bransch och användningsområde)"}
+- **Kreditsaldo:** ${credits ?? 0} krediter
+
+${schema ? `### NUVARANDE DATABASSTRUKTUR
+Kundens system har följande tabeller och fält:
+
+${schema}
+
+**VIKTIGT:** Använd denna struktur för att ge konkreta förslag. Om kunden frågar "Kan jag spåra X?", kolla om det redan finns i schemat. Om inte, föreslå att lägga till det.
+` : ''}
+
+---
+`;
+
+  return contextSection + basePrompt;
+}
+
 // System prompt för AI Architect (v1 - The Salesman)
-const SYSTEM_PROMPT = `Du är ITBD Intelligent Architect.
+function getBaseSystemPrompt(): string {
+  return `Du är ITBD Intelligent Architect.
 
 ROLL: Senior Verksamhetsutvecklare & Affärsstrateg för IT by Design.
 Din uppgift är att hjälpa kunder (ofta icke-tekniska chefer) att effektivisera sin verksamhet.
@@ -40,6 +72,7 @@ MÅL: Identifiera kundens verksamhetsbehov ("Vi tappar bort följesedlar") och �
 *Ditt TANKESÄTT:* "Kundregister = CRUD + Tabell + UI. Detta är en Medium Feature (10p)."
 *Ditt SVAR:* "Smart! Att samla kunderna digitalt sparar ofta mycket administrativ tid. Vill ni bara ha kontaktuppgifter, eller vill ni även kunna spara dokument/avtal kopplat till kunden? Detta är normalt en Medium-funktion (10 krediter)."
 `;
+}
 
 // CORS headers för att tillåta externa domäner
 const corsHeaders = {
@@ -58,11 +91,12 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, projectId }: { messages: UIMessage[], projectId: string } = await req.json();
+    const { messages, projectId, schema }: { messages: UIMessage[], projectId: string, schema?: string } = await req.json();
 
     console.log('=== Chat API Request ===');
     console.log('Project ID:', projectId);
     console.log('Messages count:', messages?.length);
+    console.log('Schema provided:', !!schema);
     console.log('Last message:', messages?.[messages.length - 1]);
 
     // Validera att projectId finns
@@ -76,15 +110,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validera projectId mot databasen
+    // Validera projectId mot databasen och hämta business profile + credits
+    // Use VIEW to get total_credits calculated from credit_ledger
     const supabase = await createClient();
     const { data: organization, error } = await supabase
-      .from('organizations')
-      .select('id, name')
+      .from('organizations_with_credits')
+      .select('id, name, business_profile, total_credits')
       .eq('id', projectId)
       .single();
 
     if (error || !organization) {
+      console.error('Error fetching organization:', error);
       return new Response(
         JSON.stringify({ error: 'Ogiltigt projekt-ID' }), 
         {
@@ -106,6 +142,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Bygg dynamisk system prompt med kontext
+    const contextualPrompt = buildContextualPrompt(
+      organization.name,
+      organization.business_profile,
+      organization.total_credits,
+      schema
+    );
+
+    console.log('=== Contextual Prompt Built ===');
+    console.log('Organization:', organization.name);
+    console.log('Business Profile:', organization.business_profile || 'Not set');
+    console.log('Credits:', organization.total_credits);
+
     // Skapa AI-modellen
     const model = google('gemini-3-flash-preview');
 
@@ -115,7 +164,7 @@ export async function POST(req: NextRequest) {
     // Streama AI-svar
     const result = streamText({
       model,
-      system: SYSTEM_PROMPT,
+      system: contextualPrompt,
       messages: modelMessages,
       temperature: 0.7,
     });

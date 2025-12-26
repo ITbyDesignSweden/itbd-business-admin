@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { Bot, Send, X, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getSchemaContext } from "@/actions/schema-context"
 
 interface AiArchitectWidgetProps {
   projectId: string
@@ -21,6 +22,7 @@ export function AiArchitectWidget({
 }: AiArchitectWidgetProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
+  const [schemaContext, setSchemaContext] = useState<string>("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const chat = useChat({
@@ -43,6 +45,21 @@ export function AiArchitectWidget({
   })
 
   const { messages, sendMessage, status, stop, error } = chat
+
+  // Fetch schema context on mount
+  useEffect(() => {
+    async function loadSchema() {
+      try {
+        const schema = await getSchemaContext()
+        setSchemaContext(schema)
+        console.log("Schema context loaded:", schema)
+      } catch (error) {
+        console.error("Failed to load schema context:", error)
+        // Continue without schema - AI will work with limited context
+      }
+    }
+    loadSchema()
+  }, [])
 
   // Auto-scroll till botten när nya meddelanden kommer
   useEffect(() => {
@@ -75,6 +92,7 @@ export function AiArchitectWidget({
       {
         body: {
           projectId,
+          schema: schemaContext,
         },
       }
     )

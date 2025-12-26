@@ -2,9 +2,11 @@ import { getAllOrganizationsWithCredits } from "@/actions/database"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AiArchitectWidget } from "@/components/ai-architect-widget"
+import { getSchemaContext } from "@/actions/schema-context"
 
 export default async function AiTestPage() {
   const organizations = await getAllOrganizationsWithCredits()
+  const schemaPreview = await getSchemaContext()
   
   // Använd första organisationen som test-projekt (eller välj en specifik)
   const testOrg = organizations[0]
@@ -14,7 +16,7 @@ export default async function AiTestPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">AI Architect - Test</h1>
         <p className="text-muted-foreground">
-          Testa AI-assistenten för plattformsutveckling.
+          Testa AI-assistenten för plattformsutveckling (Sprint 2: Context Awareness)
         </p>
       </div>
 
@@ -46,12 +48,29 @@ export default async function AiTestPage() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium">Instruktioner:</p>
+            <p className="text-sm font-medium">Sprint 2 Features:</p>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>AI känner till organisationsnamn: <strong>{testOrg?.name}</strong></li>
+              <li>AI känner till kreditsaldo: <strong>{testOrg?.total_credits} krediter</strong></li>
+              <li>AI känner till affärsprofil: <strong>{testOrg?.business_profile || 'Ej angiven'}</strong></li>
+              <li>AI får databas-schema automatiskt (se nedan)</li>
+            </ul>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Schema Context (cachad):</p>
+            <pre className="text-xs bg-muted px-3 py-2 rounded overflow-x-auto max-h-32">
+              {schemaPreview || 'Laddar schema...'}
+            </pre>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Testinstruktioner:</p>
             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
               <li>Klicka på den flytande knappen nere till höger</li>
-              <li>Skriv ett meddelande (t.ex. "Jag vill bygga ett bokningssystem")</li>
-              <li>AI:n bör svara på Svenska och diskutera krediter</li>
-              <li>Testa olika scenarios och error cases</li>
+              <li>Fråga: "Vilka tabeller har jag?" (AI bör lista dem från schema)</li>
+              <li>Fråga: "Hur många krediter har jag kvar?" (AI bör veta saldot)</li>
+              <li>Fråga: "Vad är min verksamhet?" (AI bör referera till business_profile)</li>
             </ol>
           </div>
 

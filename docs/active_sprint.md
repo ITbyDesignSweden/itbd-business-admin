@@ -1,86 +1,73 @@
-# Active Sprint: AI Architect Core (Sprint 1)
+# Active Sprint: AI Context Awareness (Sprint 2)
 
-**Status:** 🟢 Planerad
-**Startdatum:** 2025-12-25
-**Fokus:** Etablera "The Headless Agent" – Backend API och Client Widget.
+**Status:** ✅ Slutförd
+**Startdatum:** 2025-12-26
+**Slutdatum:** 2025-12-26
+**Fokus:** Ge agenten "minne" och kontext genom realtids-injektion av kunddata och schema.
 
 ---
 
 ## 🎯 Sprint Mål
-Att bygga infrastrukturen för "The Intelligent Architect". Vi ska skapa API-endpointen i Admin Portalen som hanterar AI-konversationer via **Gemini 3.0 Flash preview**, samt bygga den återanvändbara React-komponenten (`<AiArchitectWidget />`) som kan placeras i kundernas applikationer.
+Att göra agenten medveten om vem den pratar med och hur deras system ser ut just nu. Vi implementerar en mekanism där **Business Profile** hämtas från Admin DB (centralt), men **Tekniskt Schema** skickas med dynamiskt från klienten (lokalt) för 100% träffsäkerhet.
 
 ---
 
 ## 📋 Backlog & Tasks
 
-### 1. Backend: The Brain (Admin Portal)
-*Logiken som hanterar konversation och säkerhet.*
+### 1. Database: Business Profile (Admin Portal)
+*Vi skapar "behållaren" för affärsinsikter.*
+- [x] **Migration:** Lägg till `business_profile` (TEXT) i tabellen `organizations`.
+- [x] **UI:** Lägg till ett redigeringsfält (Textarea) för detta i `/organizations/[id]`.
+  - *Syfte:* Möjliggör manuell input nu (och automatisk input i Sprint 4).
 
-- [x] **Setup Vercel AI SDK:**
-  - Installera `ai` och `@ai-sdk/google`.
-  - Konfigurera API-nycklar för Google AI i `.env.local`.
-- [x] **API Route `/api/chat`:**
-  - Skapa en Route Handler i `app/api/chat/route.ts`.
-  - Implementera `streamText` med modellen `gemini-3.0-flash-preview`.
-  - **Viktigt:** Implementera CORS-headers så att externa domäner (kundernas appar) får anropa denna endpoint.
-- [x] **System Prompt v1 (The Salesman):**
-  - Definiera `system`-parametern i anropet.
-  - Hårdkoda instruktionerna: "Sälj Boilerplate, föreslå features som Krediter (S/M/L), diskutera aldrig timmar".
-- [x] **Auth Middleware:**
-  - Validera inkommande `body.projectId`.
-  - Kontrollera mot Supabase att `organizations.id` existerar.
-  - Om ogiltigt ID -> Returnera 401 Unauthorized.
+### 2. Client Feature: Schema Introspection (Boilerplate-kod)
+*Koden som ska leva i kundens app för att läsa av sig själv.*
+- [x] **Server Action `getSchemaContext()`:**
+  - Skriv en SQL-query mot `information_schema.columns`.
+  - Returnera en förenklad stränglista: `Table: users (id, email...), Table: projects (id, title...)`.
+  - **Cache:** Implementera enkel caching (t.ex. `unstable_cache`) så vi inte belastar DB vid varje chat-meddelande.
 
-### 2. Frontend: The Widget (Portable Component)
-*Komponenten som ska leva i Boilerplaten (men vi bygger/testar den i Admin först).*
+### 3. Frontend Update: The Widget
+- [x] **Payload Update:** Uppdatera `<AiArchitectWidget />` att anropa `getSchemaContext()` vid start.
+- [x] **API Call:** Skicka med schemat i `body`-parametern (`req.body.schema`) till `/api/chat`.
 
-- [x] **UI Komponent `<AiArchitectWidget />`:**
-  - Skapa en flytande knapp (FAB) nere i högra hörnet.
-  - Vid klick: Öppna en Popover/Card som ser ut som en chatt.
-  - Använd `shadcn/ui` komponenter (ScrollArea, Input, Button).
-- [x] **AI Integration:**
-  - Implementera `useChat` från `ai/react`.
-  - Peka `api`-parametern mot `http://localhost:3000/api/chat` (eller prod-URL senare).
-  - Skicka med `projectId` i `body`.
-- [x] **Error Handling:**
-  - Hantera fall där API:et svarar 401 (Ogiltigt Project ID) eller 500. Visa snygga Toast-meddelanden.
-
-### 3. Infrastruktur & Security
-- [x] **Env Variables:** Sätt upp `GOOGLE_GENERATIVE_AI_API_KEY`.
-- [x] **CORS Config:** Uppdatera `next.config.ts` eller Middleware för att tillåta Cross-Origin Requests från `localhost` (för dev) och produktionsdomäner.
+### 4. Backend: Context Synthesis (`/api/chat`)
+*Hjärnan som lägger ihop pusslet.*
+- [x] **Data Fetching:**
+  - Hämta `Business Profile` & `Credits` från Admin DB (baserat på `projectId`).
+- [x] **Prompt Engineering:**
+  - Sätt ihop System Prompten dynamiskt:
+    1.  "Du pratar med [Org Name]. Verksamhet: [Business Profile]."
+    2.  "Här är deras nuvarande databasstruktur: [Inkommande Schema]."
+    3.  "Saldo: [X] krediter."
 
 ---
 
-## 🛠 Technical Notes (For the Agent)
+## 🛠 Technical Notes
 
-### Model Configuration
-Vi använder Vercel AI SDK med Googles provider.
-```typescript
-import { google } from '@ai-sdk/google';
-
-// I route handler:
-const model = google('gemini-3.0-flash-preview');
+### SQL for Introspection
+```sql
+-- Hämtar alla publika tabeller och kolumner
+SELECT table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public'
+ORDER BY table_name, ordinal_position;
 ```
 
-### System Prompt Guidelines (Initial Version)
-```text
-You are the ITBD Intelligent Architect.
-ROLE: Senior Solution Architect & Sales Engineer.
-GOAL: Help the client expand their platform using ITBD Boilerplate features.
-RULES:
-1. NEVER discuss hours or days. Only discuss "Credits".
-2. PRICING: Small feature = 1 credit, Medium = 10, Large = 30.
-3. TECH: You strictly advocate for Next.js/Supabase. If user asks for WordPress, guide them back.
-4. TONE: Professional, helpful, concise. Answer in Swedish.
-```
-
-### CORS Challenge
-Eftersom Widgeten kommer ligga på en annan domän än API:et måste vi hantera CORS manuellt i Route Handlern:
+### Prompt Template Idea
 ```typescript
-// Exempel på headers
-headers: {
-  'Access-Control-Allow-Origin': '*', // Eller specifik origin
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-}
+const systemPrompt = `
+ROLE: ITBD Architect.
+CONTEXT:
+- Client: ${org.name}
+- Business: ${org.business_profile || "Okänd verksamhet"}
+- Credits: ${credits}
+
+DATABASE SCHEMA (Current State):
+${schemaFromClient}
+
+INSTRUCTIONS:
+- Use the schema to suggest real table names.
+- Suggest features relevant to their Business Profile.
+`;
 ```

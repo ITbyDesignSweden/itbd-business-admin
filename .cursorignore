@@ -26,7 +26,6 @@ public/
 # --- Supabase & Database ---
 # Vi vill oftast att AI:n tittar på schema.sql eller active definitions,
 # inte tusentals rader av gammal migreringshistorik.
-supabase/migrations/
 supabase/.temp/
 
 # --- System & Logs ---
