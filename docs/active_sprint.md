@@ -1,85 +1,95 @@
-# Active Sprint: Dynamic Brain & Spec Generation (Sprint 3)
+# Active Sprint: The Cold Start (Sprint 4)
 
 **Status:** 🟢 Planerad
-**Startdatum:** 2025-12-28
-**Fokus:** Gå från "Chatt" till "Leverans". Implementera dynamiska prompts i DB samt förmågan att generera tekniska specifikationer internt via Gemini 3.0 Flash.
+**Startdatum:** 2025-12-30
+**Fokus:** Automatisera insamlingen av kundinsikter. Från "Tomt blad" till "Full Profil" på sekunder via Web Scraping + AI Analys.
 
 ---
 
 ## 🎯 Sprint Mål
-1.  **Dynamisk Styrning:** Flytta System Prompt och instruktioner till databasen så vi kan tweaka "säljaren" utan att deploya kod.
-2.  **The Silent Handover:** Implementera logiken där agenten skapar en formell `spec.md` för internt bruk, medan kunden bara får en orderbekräftelse.
+Att ge systemet "ögon". Vi ska bygga en funktion som utgår från kundens URL, skannar deras hemsida, och låter Gemini sammanställa en **Business Profile** automatiskt. Detta fyller `organizations.business_profile` utan att vi behöver lyfta ett finger.
 
 ---
 
 ## 📋 Backlog & Tasks
 
-### 1. Database: Prompt Management (Dynamic Brain)
-*Möjliggör styrning av AI:n via Admin Portalen.*
+### 1. Database: Prep
+*Säkerställa att vi har plats för datan.*
 
-- [ ] **Migration:**
-  - Skapa tabell `ai_prompts` (id, name, content, is_active).
-  - Lägg till kolumn `custom_ai_instructions` (TEXT) på `organizations`-tabellen för kundspecifika regler.
-- [ ] **Admin UI:**
-  - Skapa enkel CRUD-sida `/admin/prompts` för att redigera och aktivera prompts.
-  - Lägg till redigeringsfält för `custom_ai_instructions` på kundkortet.
+- [ ] **Migration (om det saknas):**
+  - Kontrollera att `organizations` har kolumnen `website_url` (TEXT). Om inte, skapa den.
+  - (Vi har redan `business_profile` från Sprint 2).
 
-### 2. Backend: Prompt Injection
-*Uppdatera hjärnan att läsa från DB.*
+### 2. The Scraper (`lib/scraper.ts`)
+*En enkel, robust funktion för att hämta råtext från webben.*
 
-- [ ] **Update `/api/chat`:**
-  - Ersätt den hårdkodade prompten med en uppslagning mot `ai_prompts` (hämta den som är `active`).
-  - Injicera `custom_ai_instructions` i kontexten om det finns för kunden.
-  - Behåll en `FALLBACK_PROMPT` i koden som reserv.
+- [ ] **Installera:** `cheerio` (för att parsa HTML server-side).
+- [ ] **Utility Function:**
+  - `scrapeWebsite(url: string)`:
+  - Ska göra en `fetch` mot URL:en.
+  - Ska använda Cheerio för att extrahera relevant text (`p`, `h1-h6`, `meta description`).
+  - Ska rensa bort "brus" (navigering, footers, scripts).
+  - Returnera en ren textsträng (max ca 20k tecken).
 
-### 3. The Spec Engine (Internal Gemini Tool)
-*Agenten gör grovjobbet åt utvecklarna, dolt för kunden.*
+### 3. The Analyst (AI Server Action)
+*Hjärnan som tolkar datan.*
 
-- [ ] **Tool Definition:**
-  - Skapa ett Vercel AI SDK verktyg: `submit_feature_request`.
-  - Trigger: När kunden godkänner förslaget (t.ex. "Kör på det", "Beställ").
-- [ ] **Server Action `generateInternalSpec`:**
-  - Tar emot chatthistorik + nuvarande schema.
-  - Gör ett **nytt, dolt anrop** mot **Gemini 3.0 Flash** med instruktionen: "Agera Technical Lead. Sammanfatta denna konversation till en teknisk kravspecifikation i Markdown för utvecklarna."
-- [ ] **Delivery (Internal):**
-  - Spara resultatet som en fil i Admin-databasen (t.ex. tabell `project_documents` med flaggan `internal_only: true`).
-  - **Till Kunden:** Returnera endast ett trevligt svar: "Tack! Jag har skickat in önskemålet till utvecklingsteamet. Det syns nu i din orderhistorik."
+- [ ] **Server Action `enrichOrganizationProfile(orgId)`:**
+  - 1. Hämta `website_url` från databasen.
+  - 2. Kör `scrapeWebsite`.
+  - 3. Anropa **Gemini 3.0 Flash** med prompt:
+    *"Analysera denna hemsidetext. Sammanfatta bolagets verksamhet, bransch (SNI-kod om möjligt), och storlek till en kort 'Business Profile' på svenska. Formatet ska vara anpassat för att ge kontext till en sälj-AI."*
+  - 4. Spara resultatet direkt till `organizations.business_profile`.
+
+### 4. UI Integration (Admin Portal)
+*Knappen som startar magin.*
+
+- [ ] **Uppdatera `/organizations/[id]`:**
+  - Lägg till en knapp: "✨ Auto-Enrich Profile" bredvid profil-fältet.
+  - Visa en laddnings-indikator ("Scannar hemsida...") medan Server Action körs.
+  - Uppdatera fältet automatiskt när det är klart.
 
 ---
 
 ## 🛠 Technical Notes
 
-### SQL: Prompts Table
-```sql
-CREATE TABLE ai_prompts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  content text NOT NULL,
-  is_active boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
+### Scraper Logic (Cheerio)
+Vi behöver inte en tung browser (Puppeteer). Rå HTML räcker för textanalys.
 
-ALTER TABLE organizations ADD COLUMN custom_ai_instructions text;
+```typescript
+import * as cheerio from 'cheerio';
+
+export async function scrapeWebsite(url: string) {
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'ITBD-Bot/1.0' } });
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    // Ta bort skräp för att spara tokens
+    $('script, style, nav, footer, svg, button, form').remove();
+
+    // Hämta text och städa whitespace
+    const text = $('body').text().replace(/\s+/g, ' ').trim();
+    
+    // Begränsa storleken så vi inte spränger context window (Gemini klarar mycket, men onödigt att skicka spam)
+    return text.slice(0, 20000); 
+  } catch (e) {
+    console.error("Scrape failed", e);
+    return null;
+  }
+}
 ```
 
-### Spec Generation (Hidden Implementation)
+### AI Prompt Strategy
 ```typescript
-// I verktygets execute-funktion:
-// 1. Generera specen (Backend operation)
-const { text: specContent } = await generateText({
-  model: google('gemini-3.0-flash-preview'),
-  system: 'Output strictly Markdown for Developers.',
-  prompt: `Create tech spec from history: ${JSON.stringify(chatHistory)}`
-});
+const prompt = `
+INPUT: Text från bolagets hemsida.
+TASK: Skapa en 'Business Persona' för detta bolag.
+OUTPUT: En kort text (max 50-75 ord) som beskriver:
+1. Vad de säljer/gör.
+2. Vilken bransch de tillhör.
+3. Deras troliga tekniska mognad (baserat på hur de beskriver sig).
 
-// 2. Spara internt
-await supabase.from('project_documents').insert({
-  project_id: projectId,
-  title: 'Auto-Spec: Feature Request',
-  content: specContent,
-  is_internal: true
-});
-
-// 3. Svara användaren
-return "Tack! Jag har registrerat ditt önskemål. En utvecklare kommer att titta på detta inom kort.";
+TEXT: ${scrapedText}
+`;
 ```

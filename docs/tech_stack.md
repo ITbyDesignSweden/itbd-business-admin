@@ -36,7 +36,15 @@ AI-agenter (Cursor/Claude) SKA följa dessa regler strikt.
     - Webhooks (Stripe etc).
     - External API endpoints (e.g., serving credit balance to customer apps).
 
-## 5. Directory Structure
+## 5. AI & LLM Integration
+- **SDK:** **Vercel AI SDK 6.0+** (Essential).
+- **Core Library:** `ai` and `@ai-sdk/*` (specifically Google provider).
+- **Mandate:** 
+    - **ALWAYS** use paradigms introduced in version 6.0 (e.g., `streamText`, `createUIMessageStream`, `ToolLoopAgent`, `createAgentUIStream`).
+    - **STRICTLY FORBIDDEN:** Downgrading to or using legacy patterns (like `StreamingTextResponse` from AI SDK 2/3) even if documentation/examples are more prevalent for older versions.
+    - **Persistence:** Even if version 6 is new and examples are sparse, we stay on this version to ensure compatibility with modern Next.js/React versions and to leverage advanced streaming/UI helpers.
+
+## 6. Directory Structure
 ```text
 /app
   /(dashboard)      # Protected admin routes (Layout with Sidebar)
