@@ -28,6 +28,18 @@ export async function generateInternalSpec(
 ): Promise<GenerateSpecResult> {
   const { projectId, featureSummary, estimatedCredits, customerContext } = params;
 
+  // Validera att vi har all nödvändig data
+  if (!featureSummary || !customerContext || !estimatedCredits) {
+    console.error('=== generateInternalSpec: Missing required data ===');
+    console.error('featureSummary:', featureSummary);
+    console.error('estimatedCredits:', estimatedCredits);
+    console.error('customerContext:', customerContext);
+    return {
+      success: false,
+      error: 'Missing required parameters: featureSummary, estimatedCredits or customerContext',
+    };
+  }
+
   try {
     const supabase = await createClient();
 
@@ -128,11 +140,16 @@ Skapa en teknisk kravspecifikation i Markdown med följande struktur:
     const { data: { user } } = await supabase.auth.getUser();
 
     // Spara specen i project_documents (internal_only = true)
+    // Säkerställ att featureSummary finns och är en sträng
+    const safeTitle = featureSummary && typeof featureSummary === 'string' 
+      ? featureSummary.slice(0, 60) 
+      : 'Ny funktion';
+    
     const { data: document, error: insertError } = await supabase
       .from('project_documents')
       .insert({
         project_id: projectId,
-        title: `Feature Request: ${featureSummary.slice(0, 60)}...`,
+        title: `Feature Request: ${safeTitle}...`,
         content: specContent,
         is_internal: true,
         created_by: user?.id,
