@@ -4,7 +4,10 @@ import {
   convertToModelMessages, 
   UIMessage, 
   createUIMessageStream, 
-  createUIMessageStreamResponse 
+  createUIMessageStreamResponse,
+  ToolLoopAgent,
+  createAgentUIStream,
+  stepCountIs
 } from 'ai';
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
@@ -117,12 +120,9 @@ MÅL: Identifiera kundens verksamhetsbehov ("Vi tappar bort följesedlar") och �
 2. Ställ följdfrågor tills du förstår processen.
 3. Föreslå en lösning beskriven med "verksamhetsord" och ge ett pris (t.ex. "Detta är en Medium-funktion, 10 krediter").
 4. När kunden säger JA ("Kör på det", "Beställ", "Ja tack", etc.):
-   - Använd verktyget 'submit_feature_request' OMEDELBART
-   - Fyll i ALLA tre parametrar från din konversation:
-     * feature_summary: En kort sammanfattning (1-2 meningar) av vad kunden vill ha
-     * estimated_credits: Det exakta tal du nämnde (1, 10 eller 30)
-     * customer_context: Kopiera alla relevanta detaljer från konversationen
-   - Efter verktyget returnerar, visa verktygets meddelande till kunden
+   - Använd verktyget 'submit_feature_request' OMEDELBART.
+   - Fyll i ALLA tre parametrar från din konversation.
+   - **VIKTIGT:** När verktyget har körts och returnerat ett resultat, MÅSTE du skriva ett vänligt bekräftelsemeddelande till kunden där du berättar att allt är klart och vad nästa steg är. Använd informationen i verktygets svar för att formulera ditt meddelande.
 
 ### EXEMPEL PÅ TONLÄGE
 *Användare:* "Jag vill bygga ett kundregister."
@@ -222,7 +222,8 @@ export async function POST(req: NextRequest) {
 
     // Skapa en UI Message Stream (AI SDK 6)
     const stream = createUIMessageStream<CustomUIMessage>({
-      execute: ({ writer }) => {
+      // Gör execute asynkron så att vi kan vänta på agentStream
+      execute: async ({ writer }) => {
         // 1. Skicka initial status (transient - sparas inte i historiken)
         writer.write({
           type: 'data-notification',
@@ -233,17 +234,35 @@ export async function POST(req: NextRequest) {
           transient: true,
         });
 
-        // 2. Starta text-streaming
-        const result = streamText({
+        // 2. Skapa en Agent för att hantera multi-step loopen (AI SDK 6)
+        const agent = new ToolLoopAgent({
           model,
-          system: contextualPrompt,
-          messages: modelMessages,
-          temperature: 0.7,
+          instructions: contextualPrompt, // I ToolLoopAgent används 'instructions' istället för 'system'
           tools: {
             submit_feature_request: submitFeatureRequestTool(projectId),
           },
-          onFinish: () => {
-            // Skicka en bekräftelse när AI:n är klar
+          stopWhen: stepCountIs(5),
+          onFinish: (result) => {
+            // Beräkna total användning från alla steg
+            const totalUsage = result.steps.reduce((acc, step) => ({
+              inputTokens: acc.inputTokens + (step.usage?.inputTokens ?? 0),
+              outputTokens: acc.outputTokens + (step.usage?.outputTokens ?? 0),
+            }), { inputTokens: 0, outputTokens: 0 });
+
+            // Skicka metadata när loopen är klar
+            writer.write({
+              type: 'message-metadata',
+              messageMetadata: {
+                modelId: result.response.modelId,
+                usage: {
+                  promptTokens: totalUsage.inputTokens,
+                  completionTokens: totalUsage.outputTokens,
+                  totalTokens: totalUsage.inputTokens + totalUsage.outputTokens,
+                },
+              },
+            });
+
+            // Skicka en bekräftelse (transient) när AI:n är helt klar
             writer.write({
               type: 'data-notification',
               data: { 
@@ -255,30 +274,17 @@ export async function POST(req: NextRequest) {
           }
         });
 
-        // 3. Koppla ihop resultatet med vår stream
-        writer.merge(result.toUIMessageStream());
-
-        // 4. Skicka metadata efter att streamen är klar
-        (async () => {
-          try {
-            const usage = await result.usage;
-            const response = await result.response;
-            
-            writer.write({
-              type: 'message-metadata',
-              messageMetadata: {
-                modelId: response.modelId,
-                usage: {
-                  promptTokens: usage.inputTokens ?? 0,
-                  completionTokens: usage.outputTokens ?? 0,
-                  totalTokens: (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0),
-                },
-              },
-            });
-          } catch (e) {
-            console.error('Error sending metadata:', e);
-          }
-        })();
+        // 3. Starta agent-strömmen för UI och koppla ihop med vår stream
+        // Vi använder await här för att säkerställa att execute-funktionen inte avslutas för tidigt
+        try {
+          const agentStream = await createAgentUIStream({
+            agent: agent as any,
+            uiMessages: messages, // I createAgentUIStream används 'uiMessages' (UIMessage[])
+          });
+          await writer.merge(agentStream as any);
+        } catch (e) {
+          console.error('Error in agent UI stream:', e);
+        }
       },
     });
 
