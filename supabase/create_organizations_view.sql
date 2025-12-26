@@ -33,3 +33,5 @@ GROUP BY o.id, sp.id, sp.name, sp.price, sp.monthly_credits;
 
 COMMENT ON VIEW organizations_with_credits IS 'Aggregated view of organizations with credit balance and plan details. Optimizes queries by avoiding N+1 problem.';
 
+
+
