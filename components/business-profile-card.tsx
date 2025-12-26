@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react"
 import { useFormStatus } from "react-dom"
 import { Sparkles, Loader2, Pencil, Globe } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -187,8 +189,10 @@ export function BusinessProfileCard({ organization }: BusinessProfileCardProps) 
           {hasProfile ? (
             <div>
               <Label className="text-xs text-muted-foreground">AI-genererad profil</Label>
-              <div className="mt-2 p-3 bg-muted/50 rounded-md">
-                <p className="text-sm whitespace-pre-wrap">{localProfile}</p>
+              <div className="mt-2 p-4 bg-muted/50 rounded-md prose prose-sm prose-blue dark:prose-invert max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {localProfile}
+                </ReactMarkdown>
               </div>
             </div>
           ) : (
