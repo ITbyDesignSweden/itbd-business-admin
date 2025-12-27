@@ -1,4 +1,4 @@
-import { getAllOrganizationsWithCredits } from "@/actions/database"
+import { getAllOrganizationsWithCredits, getProjectsByOrgId } from "@/actions/database"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AiArchitectWidget } from "@/components/ai-architect-widget"
@@ -10,6 +10,10 @@ export default async function AiTestPage() {
   
   // Använd första organisationen som test-projekt (eller välj en specifik)
   const testOrg = organizations[0]
+  
+  // Hämta projekt för organisationen
+  const projects = testOrg ? await getProjectsByOrgId(testOrg.id) : []
+  const testProject = projects[0]
 
   return (
     <div className="space-y-6">
@@ -28,15 +32,30 @@ export default async function AiTestPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <p className="text-sm font-medium mb-2">Test-organisation:</p>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">{testOrg?.name || 'Ingen organisation hittades'}</Badge>
-              {testOrg && (
-                <code className="text-xs bg-muted px-2 py-1 rounded">
-                  ID: {testOrg.id}
-                </code>
-              )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm font-medium mb-2">Test-organisation:</p>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">{testOrg?.name || 'Ingen organisation hittades'}</Badge>
+                {testOrg && (
+                  <code className="text-xs bg-muted px-2 py-1 rounded">
+                    Org ID: {testOrg.id.slice(0, 8)}...
+                  </code>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">Test-projekt:</p>
+              <div className="flex items-center gap-2">
+                <Badge variant={testProject ? "secondary" : "destructive"}>
+                  {testProject?.title || 'Inget projekt hittades'}
+                </Badge>
+                {testProject && (
+                  <code className="text-xs bg-muted px-2 py-1 rounded">
+                    Proj ID: {testProject.id.slice(0, 8)}...
+                  </code>
+                )}
+              </div>
             </div>
           </div>
 
@@ -81,11 +100,19 @@ export default async function AiTestPage() {
               </p>
             </div>
           )}
+          
+          {testOrg && !testProject && (
+            <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <p className="text-sm text-red-800 dark:text-red-200">
+                ⚠️ Organisationen "{testOrg.name}" har inga projekt. Skapa ett projekt för att kunna testa chatten.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Widget (visas bara om vi har en test-org) */}
-      {testOrg && <AiArchitectWidget projectId={testOrg.id} />}
+      {/* Widget (visas bara om vi har ett test-projekt) */}
+      {testProject && <AiArchitectWidget projectId={testProject.id} />}
     </div>
   )
 }

@@ -10,8 +10,45 @@ import {
   stepCountIs
 } from 'ai';
 import { NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createHash } from 'crypto';
+import { validateApiKey } from '@/lib/api-auth';
 import { submitFeatureRequestTool } from '@/lib/ai-tools/submit-feature-request';
+
+// Rate limiting: Simple in-memory store (for production, use Redis or Upstash)
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10; // 10 chat requests per minute (stricter than credits)
+
+function isRateLimited(identifier: string): boolean {
+  const now = Date.now();
+  const record = rateLimitStore.get(identifier);
+
+  if (!record || now > record.resetAt) {
+    rateLimitStore.set(identifier, {
+      count: 1,
+      resetAt: now + RATE_LIMIT_WINDOW,
+    });
+    return false;
+  }
+
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return true;
+  }
+
+  record.count++;
+  return false;
+}
+
+// Clean up periodically
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of rateLimitStore.entries()) {
+      if (now > record.resetAt) rateLimitStore.delete(key);
+    }
+  }, 5 * 60 * 1000);
+}
 
 /**
  * Define type for custom messages if needed (AI SDK 6)
@@ -36,8 +73,7 @@ export type CustomUIMessage = UIMessage<
 /**
  * Fetch active AI prompt from database
  */
-async function getActivePrompt(): Promise<string> {
-  const supabase = await createClient();
+async function getActivePrompt(supabase: any): Promise<string> {
   const { data, error } = await supabase
     .from('ai_prompts')
     .select('content')
@@ -56,13 +92,14 @@ async function getActivePrompt(): Promise<string> {
  * Build contextual system prompt with organization data
  */
 async function buildContextualPrompt(
+  supabase: any,
   orgName: string,
   businessProfile: string | null,
   credits: number | null,
   customInstructions: string | null,
   schema?: string
 ): Promise<string> {
-  const basePrompt = await getActivePrompt();
+  const basePrompt = await getActivePrompt(supabase);
   
   const contextSection = `
 ### KUNDKONTEXT (Aktuell Session)
@@ -170,7 +207,43 @@ export async function POST(req: NextRequest) {
     console.log('Messages count:', messages?.length);
     console.log('Schema provided:', !!schema);
     console.log('Attachments:', attachments?.length || 0);
-    console.log('Last message:', messages?.[messages.length - 1]);
+
+    // Initialisera Supabase-klient med Service Role Key för att bypassa RLS
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Saknar Supabase miljövariabler (URL eller Service Role Key)');
+      return new Response(
+        JSON.stringify({ error: 'Serverkonfigurationsfel' }), 
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate limiting
+    const authHeader = req.headers.get("authorization");
+    const ip = req.headers.get('x-forwarded-for') || 'anonymous';
+    
+    // Determine rate limit identifier
+    let rateLimitId = ip;
+    if (authHeader && authHeader.startsWith("Bearer itbd_")) {
+      rateLimitId = createHash("sha256").update(authHeader.substring(7)).digest("hex");
+    }
+
+    if (isRateLimited(rateLimitId)) {
+      return new Response(
+        JSON.stringify({ error: 'För många anrop. Försök igen om en stund.' }), 
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     // Validera att projectId finns
     if (!projectId) {
@@ -183,27 +256,73 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validera projectId mot databasen och hämta business profile + credits + custom instructions
-    // Use VIEW to get total_credits calculated from credit_ledger
-    const supabase = await createClient();
-    const { data: organization, error } = await supabase
-      .from('organizations_with_credits')
-      .select('id, name, business_profile, total_credits, custom_ai_instructions')
+    // 1. Hämta projektet för att hitta dess org_id (Säkerhetssteg)
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('org_id')
       .eq('id', projectId)
       .single();
 
-    if (error || !organization) {
-      console.error('Error fetching organization:', error);
+    if (projectError || !project) {
+      console.error('Error fetching project:', projectError);
       return new Response(
         JSON.stringify({ error: 'Ogiltigt projekt-ID' }), 
         {
-          status: 401,
+          status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
-    // Kontrollera att API-nyckeln är konfigurerad
+    const orgId = project.org_id;
+
+    // 2. Validera API-nyckel om den tillhandahålls
+    if (authHeader && authHeader.startsWith("Bearer itbd_")) {
+      const auth = await validateApiKey(req);
+      
+      if (!auth.success) {
+        console.warn('API-nyckel validering misslyckades:', auth.error);
+        return new Response(
+          JSON.stringify({ error: auth.error || 'Ogiltig behörighet' }), 
+          {
+            status: auth.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      // Verifiera att API-nyckelns organisation matchar projektets organisation
+      if (auth.orgId !== orgId) {
+        console.warn(`Behörighetsfel: Nyckel för org ${auth.orgId} försökte komma åt projekt ${projectId} (org ${orgId})`);
+        return new Response(
+          JSON.stringify({ error: 'Ogiltig behörighet för detta projekt' }), 
+          {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    }
+
+    // 3. Hämta organisationsdata (nu med rätt orgId)
+    const { data: organization, error } = await supabase
+      .from('organizations_with_credits')
+      .select('id, name, business_profile, total_credits, custom_ai_instructions')
+      .eq('id', orgId)
+      .single();
+
+    if (error || !organization) {
+      console.error('Error fetching organization:', error);
+      return new Response(
+        JSON.stringify({ error: 'Organisation hittades ej' }), 
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Kontrollera att API-nyckeln för Google AI är konfigurerad
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       console.error('GOOGLE_GENERATIVE_AI_API_KEY är inte konfigurerad');
       return new Response(
@@ -215,8 +334,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Bygg dynamisk system prompt med kontext (inkl. custom AI instructions)
+    // Bygg dynamisk system prompt med kontext
     const contextualPrompt = await buildContextualPrompt(
+      supabase,
       organization.name,
       organization.business_profile,
       organization.total_credits,

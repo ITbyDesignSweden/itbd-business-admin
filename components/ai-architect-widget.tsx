@@ -17,11 +17,13 @@ import { createClient } from "@/lib/supabase/client"
 interface AiArchitectWidgetProps {
   projectId: string
   apiUrl?: string
+  authToken?: string
 }
 
 export function AiArchitectWidget({ 
   projectId, 
-  apiUrl = "/api/chat" 
+  apiUrl = "/api/chat",
+  authToken
 }: AiArchitectWidgetProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
@@ -32,8 +34,11 @@ export function AiArchitectWidget({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const chat = useChat({
-    // api: apiUrl, // Borttaget då det verkar krocka med vissa typdefinitioner i v6, använder default /api/chat
-    onData: (dataPart) => {
+    api: apiUrl,
+    headers: authToken ? {
+      'Authorization': `Bearer ${authToken}`
+    } : undefined,
+    onData: (dataPart: any) => {
       // Fånga upp transienta notifikationer från servern
       if (dataPart.type === 'data-notification') {
         const { message, level } = (dataPart as any).data;
@@ -43,7 +48,7 @@ export function AiArchitectWidget({
         else toast.info(message);
       }
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Chat error:", error)
       if (error.message.includes("401")) {
         toast.error("Ogiltig behörighet", {
@@ -58,7 +63,7 @@ export function AiArchitectWidget({
     onFinish: () => {
       console.log("Message finished")
     },
-  })
+  } as any)
 
   const { messages, sendMessage, status, stop, error } = chat
 

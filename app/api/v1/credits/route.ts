@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createHash } from "crypto"
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { validateApiKey } from "@/lib/api-auth"
 
 // Rate limiting: Simple in-memory store (for production, use Redis or Upstash)
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
@@ -57,37 +56,21 @@ setInterval(cleanupRateLimitStore, 5 * 60 * 1000)
  */
 export async function GET(request: NextRequest) {
   try {
-    // 1. Extract and validate Authorization header
-    const authHeader = request.headers.get("authorization")
+    // 1. Validate API key using shared logic
+    const auth = await validateApiKey(request);
     
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!auth.success) {
       return NextResponse.json(
         { 
-          error: "Missing or invalid Authorization header",
-          message: "Please provide a valid API key in the format: Authorization: Bearer <your-api-key>"
+          error: auth.error,
+          message: auth.message
         },
-        { status: 401 }
+        { status: auth.status }
       )
     }
 
-    const apiKey = authHeader.substring(7) // Remove "Bearer " prefix
-
-    if (!apiKey || apiKey.trim() === "") {
-      return NextResponse.json(
-        { error: "API key is empty" },
-        { status: 401 }
-      )
-    }
-
-    // 2. Rate limiting (use API key as identifier)
-    const keyHash = createHash("sha256").update(apiKey).digest("hex")
-    
-    // DEBUG: Log for troubleshooting
-    console.log("🔑 API Key received (first 10 chars):", apiKey.substring(0, 10) + "...")
-    console.log("🔐 Key hash:", keyHash)
-    console.log("📏 Key length:", apiKey.length)
-    
-    if (isRateLimited(keyHash)) {
+    // 2. Rate limiting (use keyHash from auth result)
+    if (isRateLimited(auth.keyHash)) {
       return NextResponse.json(
         { 
           error: "Rate limit exceeded",
@@ -97,66 +80,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // 3. Verify API key and get organization ID
-    // We need to use service_role key here because this is a public endpoint
-    // and we need to bypass RLS to look up the API key
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase environment variables")
-      return NextResponse.json(
-        { error: "Internal server error" },
-        { status: 500 }
-      )
-    }
-
-    // DEBUG: Verify env vars are loaded
-    console.log("🌐 Supabase URL:", supabaseUrl)
-    console.log("🔑 Service key exists:", !!supabaseServiceKey)
-    console.log("🔑 Service key length:", supabaseServiceKey?.length)
-    console.log("🔑 Service key starts with:", supabaseServiceKey?.substring(0, 10))
-
-    // Create Supabase client with service role (bypasses RLS)
+    // 3. Fetch organization data
+    // We need to use service_role key here to bypass RLS
+    const { createClient: createSupabaseClient } = await import("@supabase/supabase-js")
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
     const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey)
 
-    // Look up the API key
-    const { data: apiKeyData, error: keyError } = await supabase
-      .from("api_keys")
-      .select("id, org_id, is_active")
-      .eq("key_hash", keyHash)
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle()
-
-    // DEBUG: Log lookup result
-    console.log("🔍 DB Lookup result:", { found: !!apiKeyData, error: keyError?.message })
-    if (!apiKeyData) {
-      console.log("❌ No matching API key found in database")
-    }
-
-    if (keyError || !apiKeyData) {
-      return NextResponse.json(
-        { 
-          error: "Invalid API key",
-          message: "The provided API key is invalid or has been revoked."
-        },
-        { status: 401 }
-      )
-    }
-
-    // 4. Update last_used_at timestamp (fire and forget)
-    supabase
-      .from("api_keys")
-      .update({ last_used_at: new Date().toISOString() })
-      .eq("id", apiKeyData.id)
-      .then(() => {}) // Ignore result
-
-    // 5. Fetch organization data with credits and plan
+    // Fetch organization data with credits and plan
     const { data: orgData, error: orgError } = await supabase
       .from("organizations_with_credits")
       .select("*")
-      .eq("id", apiKeyData.org_id)
+      .eq("id", auth.orgId)
       .single()
 
     if (orgError || !orgData) {
