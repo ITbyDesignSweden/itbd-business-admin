@@ -3,36 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-
-// Types
-export type PilotRequest = {
-  id: string
-  created_at: string
-  email: string
-  contact_name: string
-  company_name: string
-  org_nr: string | null
-  description: string | null
-  file_path: string | null
-  status: "pending" | "approved" | "rejected"
-}
-
-export type PilotRequestAttachment = {
-  id: string
-  created_at: string
-  request_id: string
-  file_path: string
-  file_name: string
-  file_type: string | null
-  file_size: number | null
-}
-
-// Note: Public submissions are handled via Edge Function (submit-pilot-request)
-// This file only contains admin-side functions for managing pilot requests
-
-export type PilotRequestWithAttachments = PilotRequest & {
-  attachments: PilotRequestAttachment[]
-}
+import { PilotRequest, PilotRequestAttachment, PilotRequestWithAttachments } from "@/lib/types/database"
 
 export async function getAllPilotRequests(): Promise<PilotRequest[]> {
   const supabase = await createClient()

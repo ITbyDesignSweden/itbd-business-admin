@@ -2,15 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-
-export interface AIPrompt {
-  id: string;
-  name: string;
-  content: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import { AIPrompt } from '@/lib/types/database';
 
 /**
  * Create a new AI prompt

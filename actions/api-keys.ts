@@ -3,16 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { randomBytes, createHash } from "crypto"
-
-export interface ApiKey {
-  id: string
-  created_at: string
-  org_id: string
-  key_preview: string
-  name: string | null
-  is_active: boolean
-  last_used_at: string | null
-}
+import { ApiKey } from "@/lib/types/database"
 
 /**
  * Generate a new API key for an organization
