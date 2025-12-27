@@ -97,6 +97,14 @@ Din uppgift är att hjälpa kunder (ofta icke-tekniska chefer) att effektivisera
 
 MÅL: Identifiera kundens verksamhetsbehov ("Vi tappar bort följesedlar") och översätt det till digitala lösningar prissatta i Krediter.
 
+### MULTIMODAL FÖRMÅGA (BILDER & FILER)
+- Du har tillgång till bifogade filer (bilder, PDF, dokument).
+- **Analysera visuellt:** Om kunden laddar upp skärmdumpar, skisser, Excel-ark eller prototyper, studera dem noggrant för att förstå deras nuvarande arbetsflöde eller önskad design.
+- **GDPR-SKYDD:** Om du ser känsliga personuppgifter (namn, telefonnummer, personnummer, e-post) i bilder eller dokument, IGNORERA dessa helt. Fokusera enbart på struktur, layout och affärslogik.
+- **Exempel på användning:**
+  * Kund laddar upp bild på en pappersorder → Du identifierar fält (Artikelnr, Antal, Pris) och föreslår ett digitalt register.
+  * Kund visar skärmdump från konkurrerande system → Du analyserar funktioner och föreslår liknande lösning.
+
 ### REGLER FÖR KOMMUNIKATION (NO-TECH ZONE)
 1. 🚫 **TEKNISKT FÖRBUD:** Du får ALDRIG nämna tekniska termer mot kunden.
    - FÖRBJUDNA ORD: Next.js, Supabase, React, Tailwind, SQL, RLS, Databas, Tabell, API, Backend, Frontend, CRUD.
@@ -146,14 +154,22 @@ export async function OPTIONS() {
   });
 }
 
+interface ChatRequestBody {
+  messages: UIMessage[];
+  projectId: string;
+  schema?: string;
+  attachments?: Array<{ name: string; url: string; contentType: string }>;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { messages, projectId, schema }: { messages: UIMessage[], projectId: string, schema?: string } = await req.json();
+    const { messages, projectId, schema, attachments }: ChatRequestBody = await req.json();
 
     console.log('=== Chat API Request ===');
     console.log('Project ID:', projectId);
     console.log('Messages count:', messages?.length);
     console.log('Schema provided:', !!schema);
+    console.log('Attachments:', attachments?.length || 0);
     console.log('Last message:', messages?.[messages.length - 1]);
 
     // Validera att projectId finns
@@ -214,11 +230,68 @@ export async function POST(req: NextRequest) {
     console.log('Credits:', organization.total_credits);
     console.log('Custom AI Instructions:', organization.custom_ai_instructions ? 'Yes' : 'No');
 
-    // Skapa AI-modellen
+    // Skapa AI-modellen (Gemini 2.0 Flash stödjer multimodal natively)
     const model = google('gemini-3-flash-preview');
 
+    // Process attachments if present - add them to the last user message
+    let processedMessages: any[] = messages;
+    if (attachments && attachments.length > 0) {
+      console.log('Processing attachments for multimodal input...');
+      
+      // Clone messages array
+      processedMessages = [...messages];
+      const lastMessageIndex = processedMessages.length - 1;
+      const lastMessage = processedMessages[lastMessageIndex];
+      
+      // Add image parts to the message
+      // For Gemini, we need to fetch the images and convert to base64
+      const imageParts = await Promise.all(
+        attachments
+          .filter(att => att.contentType.startsWith('image/'))
+          .map(async (att) => {
+            try {
+              // Fetch the signed URL and convert to base64
+              const response = await fetch(att.url);
+              const arrayBuffer = await response.arrayBuffer();
+              const base64 = Buffer.from(arrayBuffer).toString('base64');
+              
+              return {
+                type: 'image' as const,
+                image: `data:${att.contentType};base64,${base64}`,
+              };
+            } catch (error) {
+              console.error('Failed to fetch attachment:', att.name, error);
+              return null;
+            }
+          })
+      );
+      
+      // Filter out failed fetches
+      const validImageParts = imageParts.filter(p => p !== null);
+      
+      if (validImageParts.length > 0) {
+        // Get the text content from the last message
+        const textContent = typeof lastMessage.content === 'string' 
+          ? lastMessage.content 
+          : lastMessage.parts?.find((p: any) => p.type === 'text')?.text || '';
+        
+        // Update the last message to include image parts
+        processedMessages[lastMessageIndex] = {
+          ...lastMessage,
+          content: [
+            { type: 'text' as const, text: textContent },
+            ...validImageParts,
+          ],
+        };
+        
+        console.log('Added', validImageParts.length, 'images to the message');
+      }
+    }
+
     // Konvertera UIMessages till model messages
-    const modelMessages = await convertToModelMessages(messages);
+    const modelMessages = await convertToModelMessages(processedMessages);
+    
+    console.log('Model messages prepared:', modelMessages.length, 'messages');
 
     // Skapa en UI Message Stream (AI SDK 6)
     const stream = createUIMessageStream<CustomUIMessage>({

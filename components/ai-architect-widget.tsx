@@ -7,11 +7,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import { Bot, Send, X, Loader2 } from "lucide-react"
+import { Bot, Send, X, Loader2, Paperclip, FileIcon, ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getSchemaContext } from "@/actions/schema-context"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { createClient } from "@/lib/supabase/client"
 
 interface AiArchitectWidgetProps {
   projectId: string
@@ -25,7 +26,10 @@ export function AiArchitectWidget({
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
   const [schemaContext, setSchemaContext] = useState<string>("")
+  const [attachments, setAttachments] = useState<Array<{ name: string, url: string, contentType: string }>>([])
+  const [isUploading, setIsUploading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const chat = useChat({
     // api: apiUrl, // Borttaget då det verkar krocka med vissa typdefinitioner i v6, använder default /api/chat
@@ -91,20 +95,122 @@ export function AiArchitectWidget({
   console.log("Status:", status)
   console.log("Error:", error)
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    const file = files[0]
+    
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Filen är för stor", {
+        description: "Max filstorlek är 10MB"
+      })
+      return
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+      'application/pdf', 'text/plain', 'text/csv', 'application/json',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword'
+    ]
+    
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Filtypen stöds inte", {
+        description: "Stöder bilder, PDF, text, CSV och Office-dokument (Excel/Word)"
+      })
+      return
+    }
+
+    setIsUploading(true)
+
+    try {
+      // Upload to Supabase Storage
+      const supabase = createClient()
+      const fileName = `${Date.now()}-${file.name}`
+      const filePath = `${projectId}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-attachments')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        toast.error("Kunde inte ladda upp filen", {
+          description: uploadError.message
+        })
+        return
+      }
+
+      // Create signed URL (valid for 1 hour)
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from('chat-attachments')
+        .createSignedUrl(filePath, 3600) // 1 hour
+
+      if (urlError || !urlData) {
+        console.error('URL error:', urlError)
+        toast.error("Kunde inte skapa länk till filen")
+        return
+      }
+
+      // Add to attachments
+      setAttachments(prev => [...prev, {
+        name: file.name,
+        url: urlData.signedUrl,
+        contentType: file.type
+      }])
+
+      toast.success("Fil bifogad", {
+        description: file.name
+      })
+
+    } catch (error) {
+      console.error('File upload error:', error)
+      toast.error("Ett fel uppstod vid uppladdning")
+    } finally {
+      setIsUploading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+  }
+
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!inputValue.trim() || isLoading) return
+    if ((!inputValue.trim() && attachments.length === 0) || isLoading) return
     
-    const text = inputValue
+    let messageText = inputValue
+    
+    // For images, only show the names in the chat UI
+    // The actual analysis is handled server-side via the attachments in the body
+    if (attachments.length > 0) {
+      messageText = `${messageText}\n\n[Bifogade filer/bilder: ${attachments.map(a => a.name).join(', ')}]`.trim()
+    }
+    
     setInputValue("") // Rensa input direkt
+    setAttachments([]) // Clear attachments after sending
     
     // Använd sendMessage enligt AI SDK 6 dokumentation
+    // Skicka attachments metadata via body för server-side hantering
     sendMessage(
-      { text },
+      { text: messageText },
       {
         body: {
           projectId,
           schema: schemaContext,
+          attachments: attachments.length > 0 ? attachments : undefined,
         },
       }
     )
@@ -183,10 +289,10 @@ export function AiArchitectWidget({
                   )}
                   
                   {/* Rendera bubblan för meddelanden */}
-                  <div className="flex flex-col gap-1 max-w-[85%]">
+                  <div className="flex flex-col gap-1 max-w-[80%]">
                     <div
                       className={cn(
-                        "rounded-lg px-4 py-2.5 break-words",
+                        "rounded-lg px-4 py-2.5 break-words [word-break:break-word] overflow-hidden",
                         message.role === "user"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted"
@@ -205,7 +311,7 @@ export function AiArchitectWidget({
                                 )}
                               >
                                 {message.role === "user" ? (
-                                  <div className="whitespace-pre-wrap">{part.text}</div>
+                                  <div className="whitespace-pre-wrap break-words">{part.text}</div>
                                 ) : (
                                   <ReactMarkdown 
                                     remarkPlugins={[remarkGfm]}
@@ -328,8 +434,63 @@ export function AiArchitectWidget({
           </ScrollArea>
 
           {/* Input */}
-          <div className="p-4 border-t bg-background shrink-0">
+          <div className="p-4 border-t bg-background shrink-0 space-y-2">
+            {/* GDPR Disclaimer */}
+            <div className="text-[10px] leading-tight text-muted-foreground bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30 rounded px-2 py-1.5">
+              <strong>⚠️ GDPR-notering:</strong> Ladda ej upp känsliga personuppgifter. Bifogade filer raderas automatiskt efter 24 timmar.
+            </div>
+
+            {/* Attachments Preview */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {attachments.map((att, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded text-xs border"
+                  >
+                    {att.contentType.startsWith('image/') ? (
+                      <ImageIcon className="h-3 w-3 text-blue-500" />
+                    ) : (
+                      <FileIcon className="h-3 w-3 text-gray-500" />
+                    )}
+                    <span className="max-w-[150px] truncate">{att.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(index)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input Form */}
             <form onSubmit={handleFormSubmit} className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileSelect}
+                accept="image/*,.pdf,.txt,.csv,.json,.xlsx,.xls,.docx,.doc"
+              />
+              
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading || isUploading}
+                title="Bifoga fil (bilder, PDF, Office, text)"
+              >
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
+              </Button>
+
               <Input
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -338,6 +499,7 @@ export function AiArchitectWidget({
                 className="flex-1"
                 autoComplete="off"
               />
+              
               {isLoading ? (
                 <Button
                   type="button"
@@ -352,7 +514,7 @@ export function AiArchitectWidget({
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={!inputValue.trim() || isLoading}
+                  disabled={(!inputValue.trim() && attachments.length === 0) || isLoading}
                 >
                   <Send className="h-4 w-4" />
                 </Button>
