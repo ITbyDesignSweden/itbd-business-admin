@@ -21,6 +21,13 @@ GITHUB_ACCESS_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # Template repository som ska användas för provisioning
 GITHUB_TEMPLATE_OWNER=itbd-org
 GITHUB_TEMPLATE_REPO=itbd-boilerplate-v1
+
+# Cloudflare Turnstile (Sprint 6: Security)
+# Site Key (public, används i frontend)
+NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=
+
+# Secret Key (privat, används för verifiering på servern)
+CLOUDFLARE_TURNSTILE_SECRET=
 ```
 
 ## Var hittar jag nycklarna?
@@ -49,6 +56,23 @@ GITHUB_TEMPLATE_REPO=itbd-boilerplate-v1
 
 - Om du använder standardtemplate från `itbd-org`, behöver du inte ändra `GITHUB_TEMPLATE_OWNER` och `GITHUB_TEMPLATE_REPO`
 - Om du vill använda en annan template, uppdatera dessa värden
+
+### Cloudflare Turnstile (Sprint 6)
+
+1. Gå till [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. Navigera till **Turnstile** i sidomenyn
+3. Klicka **Add Site**
+4. Välj **Managed** och konfigurera:
+   - **Site name**: IT by Design - Business Admin
+   - **Domain**: Din domän (eller `localhost` för utveckling)
+   - **Widget Mode**: Managed (rekommenderat)
+5. Kopiera:
+   - **Site Key** → `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY`
+   - **Secret Key** → `CLOUDFLARE_TURNSTILE_SECRET`
+
+**För utveckling:** Cloudflare tillhandahåller test-keys:
+- Site Key: `1x00000000000000000000AA` (alltid godkänd)
+- Secret Key: `1x0000000000000000000000000000000AA`
 
 ## Vercel Deployment
 

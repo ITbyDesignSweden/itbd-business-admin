@@ -4,6 +4,120 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { PilotRequest, PilotRequestAttachment, PilotRequestWithAttachments } from "@/lib/types/database"
+import { verifyTurnstile, getSystemSettings } from "@/lib/security"
+
+// Validation schema for submitting a new pilot request
+const submitPilotRequestSchema = z.object({
+  email: z.string().email("Ogiltig e-postadress"),
+  contact_name: z.string().min(2, "Kontaktperson måste vara minst 2 tecken"),
+  company_name: z.string().min(2, "Företagsnamn måste vara minst 2 tecken"),
+  org_nr: z.string().optional(),
+  description: z.string().optional(),
+  turnstile_token: z.string().min(1, "Säkerhetsverifiering krävs"),
+  files: z.array(z.object({
+    path: z.string(),
+    name: z.string(),
+    type: z.string(),
+    size: z.number(),
+  })).optional(),
+})
+
+export type SubmitPilotRequestInput = z.infer<typeof submitPilotRequestSchema>
+
+/**
+ * Submit a new pilot request with Turnstile verification
+ * Sprint 6: The Gatekeeper
+ */
+export async function submitPilotRequest(
+  input: SubmitPilotRequestInput
+): Promise<{ success: boolean; error?: string; data?: PilotRequest }> {
+  try {
+    // Validate input
+    const validatedData = submitPilotRequestSchema.parse(input)
+
+    // Step 1: Verify Turnstile token
+    const isTurnstileValid = await verifyTurnstile(validatedData.turnstile_token)
+    if (!isTurnstileValid) {
+      return {
+        success: false,
+        error: "Säkerhetsverifiering misslyckades. Försök igen.",
+      }
+    }
+
+    // Step 2: Check system settings (optional - can stop if paused)
+    const settings = await getSystemSettings()
+    if (!settings) {
+      console.warn("Could not fetch system settings, continuing anyway...")
+    }
+
+    const supabase = await createClient()
+
+    // Step 3: Create pilot request
+    const { data: newRequest, error: requestError } = await supabase
+      .from("pilot_requests")
+      .insert({
+        email: validatedData.email,
+        contact_name: validatedData.contact_name,
+        company_name: validatedData.company_name,
+        org_nr: validatedData.org_nr || null,
+        description: validatedData.description || null,
+        status: "pending",
+        turnstile_verified: true,
+        lead_source: "web_form",
+      })
+      .select()
+      .single()
+
+    if (requestError) {
+      console.error("Error creating pilot request:", requestError)
+      return {
+        success: false,
+        error: "Kunde inte skapa ansökan. Försök igen.",
+      }
+    }
+
+    // Step 4: Create attachments if files provided
+    if (validatedData.files && validatedData.files.length > 0) {
+      const attachments = validatedData.files.map(file => ({
+        request_id: newRequest.id,
+        file_path: file.path,
+        file_name: file.name,
+        file_type: file.type,
+        file_size: file.size,
+      }))
+
+      const { error: attachmentsError } = await supabase
+        .from("pilot_request_attachments")
+        .insert(attachments)
+
+      if (attachmentsError) {
+        console.error("Error creating attachments:", attachmentsError)
+        // Don't fail the whole request if attachments fail
+      }
+    }
+
+    // Revalidate pilot requests page
+    revalidatePath("/pilot-requests")
+
+    return {
+      success: true,
+      data: newRequest as PilotRequest,
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+      }
+    }
+
+    console.error("Unexpected error:", error)
+    return {
+      success: false,
+      error: "Ett oväntat fel uppstod. Försök igen.",
+    }
+  }
+}
 
 export async function getAllPilotRequests(): Promise<PilotRequest[]> {
   const supabase = await createClient()
@@ -142,6 +256,7 @@ export async function updatePilotRequestStatus(
       }
 
       // Create new organization
+      // Sprint 6: Copy enrichment_data to business_profile if available
       const { data: newOrg, error: orgError } = await supabase
         .from("organizations")
         .insert({
@@ -149,6 +264,9 @@ export async function updatePilotRequestStatus(
           org_nr: pilotRequest.org_nr || null,
           subscription_plan: null, // No plan selected yet - pilot will choose later
           status: "pilot", // Start as pilot
+          business_profile: pilotRequest.enrichment_data 
+            ? JSON.stringify(pilotRequest.enrichment_data) 
+            : null,
         })
         .select()
         .single()

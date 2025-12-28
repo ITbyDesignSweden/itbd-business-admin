@@ -1,140 +1,134 @@
-# Active Sprint: The Multimodal Eye (Sprint 5)
+# Active Sprint: The Gatekeeper (Sprint 6)
 
-**Status:** ✅ Implementerad
-**Startdatum:** 2025-01-27
-**Slutdatum:** 2025-01-27
-**Fokus:** Ge "The Architect" syn på ett säkert sätt. Möjliggör uppladdning av filer för analys, med strikt "Data Retention Policy" för GDPR-compliance.
+**Status:** ✅ Komplett
+**Startdatum:** 2025-01-05
+**Slutdatum:** 2025-01-28
+**Fokus:** Säkra inflödet och aktivera Admin-funktionerna. Vi bygger på befintlig `PilotRequest`-logik med Cloudflare Turnstile och lägger till fält för kommande AI-analys.
 
 ---
 
 ## 🎯 Sprint Mål
-Att implementera filuppladdning i `<AiArchitectWidget />` via Supabase Storage. Vi prioriterar säkerhet: filer ska vara krypterade i vila, skyddade med RLS, och raderas automatiskt när de inte längre behövs (Ephemeral Storage).
+1.  **Säkerhet:** Skydda `/apply` (skapandet av requests) med Cloudflare Turnstile.
+2.  **Data:** Migrera databasen för att stödja AI-data och globala systeminställningar.
+3.  **Admin:** Koppla upp UI-knappar ("Godkänn"/"Neka") mot den befintliga funktionen `updatePilotRequestStatus`.
 
 ---
 
 ## 📋 Backlog & Tasks
 
-### 1. Infrastructure: Secure Storage ✅
-*Säker lagring som städar sig själv.*
+### 1. Database: Prep for Enrichment & Settings ✅
+*Vi behöver plats för rådata och en "nödbroms" för systemet.*
 
-- [x] **Create Private Bucket:** Skapa en bucket `chat-attachments`.
-  - **Viktigt:** Sätt den till `Private` (inte Public).
-  - **Implementerat:** Migration `20250127_create_chat_attachments_storage.sql`
-- [x] **Lifecycle Policy (GDPR):**
-  - Konfigurera Supabase Bucket Lifecycle (via Dashboard eller SQL) att radera objekt äldre än **1 dag**.
-  - *Syfte:* Vi ska inte agera långtidsarkiv för kundens filer.
-  - **Implementerat:** Edge Function `cleanup-chat-files` + SQL-funktion `cleanup_old_chat_attachments()`
-- [x] **RLS Policies:**
-  - `INSERT`: Endast autentiserade användare som tillhör rätt `organization_id`.
-  - `SELECT`: Endast ägaren av filen (eller admin).
-  - **Implementerat:** Tre policies i migration (INSERT, SELECT, DELETE)
+- [x] **Migration `system_settings` (Ny tabell):**
+  - Skapa en singleton-tabell (endast 1 rad tillåten).
+  - Kolumner: 
+    - `enrichment_mode` (enum: 'manual', 'assist', 'autopilot').
+    - `max_daily_leads` (int).
+- [x] **Migration `pilot_requests` (Uppdatering):**
+  - Lägg till kolumner för spårbarhet och framtida AI:
+    - `enrichment_data` (jsonb, nullable) – *Plats för rådata från research.*
+    - `fit_score` (int, nullable) – *Plats för AI-poäng.*
+    - `turnstile_verified` (boolean, default false).
+    - `lead_source` (text, default 'web_form').
 
-### 2. Frontend: Widget UI Update ✅
-- [x] **UI:** Lägg till "Bifoga"-knapp (📎 Paperclip) i input-fältet.
-  - **Implementerat:** `components/ai-architect-widget.tsx`
-- [x] **Disclaimer:** Lägg till text: *"Ladda ej upp känsliga personuppgifter (GDPR). Filer raderas efter 24h."*
-  - **Implementerat:** Gul varningsruta ovanför input-fältet
-- [x] **Logic:**
-  - Ladda upp till `chat-attachments/{projectId}/{filename}`.
-  - Skapa en "Signed URL" (som gäller i 1 timme) via Supabase SDK.
-  - Skicka denna URL till `useChat` (Vercel AI SDK hämtar filen server-side).
-  - **Implementerat:** Filvalidering, upload, signed URL, attachments preview
+### 2. Security: Cloudflare Turnstile (`/apply`) ✅
+*Skydda endpointen som skapar förfrågningar.*
 
-### 3. Backend: Multimodal Handling (`/api/chat`) ✅
-- [x] **System Prompt Update:**
-  - *"Du har tillgång till bifogade filer. Analysera dem för att förstå struktur/design. Ignorera eventuella personuppgifter (namn, telefonnr) om du ser dem."*
-  - **Implementerat:** Ny sektion i `getFallbackSystemPrompt()` med GDPR-instruktioner
-- [x] **File Fetching:**
-  - Vercel AI SDK hanterar URL:er, men säkerställ att servern kan nå den signerade URL:en.
-  - **Implementerat:** Fetch signed URL, konvertera till base64, lägg till som image parts i Gemini message
+- [x] **Setup:**
+  - Hämta Site Key & Secret Key från Cloudflare Dashboard.
+  - Spara keys i `.env.local`.
+- [x] **Frontend (`/apply/page.tsx`):**
+  - Integrera `<Turnstile />` i formuläret.
+  - Kräv en giltig token för att aktivera submit-knappen.
+- [x] **Backend (Ny Action: `submitPilotRequest`):**
+  - Skapa en Server Action som anropas av formuläret.
+  - **Steg 1:** Verifiera Turnstile-token mot Cloudflare (se Tech Notes).
+  - **Steg 2:** Kolla `system_settings` (valfritt: stoppa om inflödet är pausat).
+  - **Steg 3:** Spara till `pilot_requests` med `turnstile_verified: true`.
+
+### 3. Admin UI: Activate the Inbox ✅
+*Gör listan interaktiv med din befintliga kod.*
+
+- [x] **UI Update (`/admin/pilot-requests`):**
+  - I listvyn, lägg till en kolumn "Actions".
+  - Lägg till knapp: **✅ Godkänn**. Anropa `updatePilotRequestStatus({ id, status: 'approved' })`.
+  - Lägg till knapp: **❌ Neka**. Anropa `updatePilotRequestStatus({ id, status: 'rejected' })`.
+  - **OBS:** Detta var redan implementerat från tidigare sprint! ✅
+- [x] **Logic Tweak (`actions/pilot-requests.ts`):**
+  - Uppdatera `updatePilotRequestStatus` så att den vid godkännande kopierar `enrichment_data` till `organizations.business_profile` (om datan finns).
 
 ---
 
 ## 🛠 Technical Notes
 
-### Supabase Storage Lifecycle (SQL)
-Supabase har nyligen lagt till stöd för detta i UI, men SQL är säkrast:
-*(OBS: Detta kräver pg_cron eller manuell konfiguration om man inte använder UI:t under Storage > Configuration)*
+### SQL Migrations
 
-Alternativt, en enkel cron-job funktion (Edge Function) som körs varje natt:
-```typescript
-// cleanup-files.ts (Edge Function)
-const { data, error } = await supabase
-  .storage
-  .from('chat-attachments')
-  .list(); // Loopa och ta bort gamla filer
+```sql
+-- 1. Settings & Enums
+CREATE TYPE enrichment_mode_type AS ENUM ('manual', 'assist', 'autopilot');
+
+CREATE TABLE system_settings (
+  id int PRIMARY KEY DEFAULT 1,
+  enrichment_mode enrichment_mode_type DEFAULT 'manual',
+  max_daily_leads int DEFAULT 10,
+  created_at timestamptz DEFAULT now(),
+  CONSTRAINT single_row CHECK (id = 1)
+);
+-- Initiera default-raden
+INSERT INTO system_settings (id) VALUES (1);
+
+-- 2. Update PilotRequests table
+ALTER TABLE pilot_requests
+  ADD COLUMN fit_score int,
+  ADD COLUMN enrichment_data jsonb,
+  ADD COLUMN turnstile_verified boolean DEFAULT false,
+  ADD COLUMN lead_source text DEFAULT 'web_form';
 ```
 
----
+### Backend: Turnstile Verification Helper
+Skapa `utils/security.ts`:
 
-## 📊 Implementation Summary
+```typescript
+export async function verifyTurnstile(token: string): Promise<boolean> {
+  const secret = process.env.CLOUDFLARE_TURNSTILE_SECRET;
+  if (!secret) {
+    console.warn("Turnstile secret missing, skipping validation (Dev mode)");
+    return true; 
+  }
 
-**Sprint 5 är framgångsrikt implementerad!** 🎉
+  const formData = new FormData();
+  formData.append('secret', secret);
+  formData.append('response', token);
 
-### Skapade Filer:
+  try {
+    const res = await fetch('[https://challenges.cloudflare.com/turnstile/v0/siteverify](https://challenges.cloudflare.com/turnstile/v0/siteverify)', {
+      method: 'POST',
+      body: formData,
+    });
+    const outcome = await res.json();
+    return outcome.success;
+  } catch (e) {
+    console.error("Turnstile error:", e);
+    return false;
+  }
+}
+```
 
-1. **Migration:** `supabase/migrations/20250127_create_chat_attachments_storage.sql`
-   - Private bucket med RLS
-   - Cleanup-funktion för GDPR
+### Refactoring: Mapping Data on Approval
+I `updatePilotRequestStatus` (inuti `if (validatedData.status === "approved")` blocket):
 
-2. **Edge Function:** `supabase/functions/cleanup-chat-files/`
-   - Automatisk rensning varje natt
-   - Deployment-instruktioner i README
-
-3. **Frontend:** `components/ai-architect-widget.tsx` (uppdaterad)
-   - Filuppladdning UI
-   - GDPR-disclaimer
-   - Attachments preview
-
-4. **Backend:** `app/api/chat/route.ts` (uppdaterad)
-   - Multimodal support (bilder)
-   - Base64-konvertering för Gemini
-   - GDPR-instruktioner i system prompt
-
-5. **Dokumentation:**
-   - `docs/sprint5_implementation_summary.md` - Fullständig teknisk dokumentation
-   - `docs/sprint5_test_instructions.md` - Testinstruktioner
-
-### Teknisk Stack:
-
-- ✅ Vercel AI SDK 6.0.3
-- ✅ Google Gemini 2.0 Flash (multimodal)
-- ✅ Supabase Storage (private bucket)
-- ✅ Supabase Edge Functions (cleanup)
-- ✅ Row Level Security (RLS)
-
-### Nästa Steg:
-
-1. **Kör migration:**
-   ```bash
-   # Via Supabase Dashboard: SQL Editor
-   # Kör innehållet från: supabase/migrations/20250127_create_chat_attachments_storage.sql
-   ```
-
-2. **Deploy Edge Function:**
-   ```bash
-   supabase functions deploy cleanup-chat-files
-   ```
-
-3. **Konfigurera Cron:**
-   ```sql
-   -- Se: supabase/functions/cleanup-chat-files/README.md
-   ```
-
-4. **Testa:**
-   - Följ instruktioner i `docs/sprint5_test_instructions.md`
-   - Verifiera att alla 7 tester passerar
-
-5. **Deploy till Production:**
-   ```bash
-   git add .
-   git commit -m "feat: Sprint 5 - Multimodal AI with secure file upload"
-   git push
-   # Vercel deploys automatically
-   ```
-
----
-
-## 🎯 Sprint 5 - Status: KLAR ✅
-
-Alla backlog-items är implementerade och testade. Systemet är redo för production-deployment efter att migrationen körts och Edge Function deployats.
+```typescript
+// ...
+const { data: newOrg, error: orgError } = await supabase
+  .from("organizations")
+  .insert({
+    name: pilotRequest.company_name,
+    org_nr: pilotRequest.org_nr || null,
+    status: "pilot",
+    // NYTT: Om vi har AI-data (Sprint 7), spara den som business_profile
+    business_profile: pilotRequest.enrichment_data 
+      ? JSON.stringify(pilotRequest.enrichment_data) 
+      : null, 
+  })
+// ...
+```

@@ -2,6 +2,7 @@ export type OrganizationStatus = "pilot" | "active" | "churned"
 export type ProjectStatus = "backlog" | "in_progress" | "completed" | "cancelled"
 export type SubscriptionStatus = "active" | "paused" | "cancelled" | "inactive"
 export type PilotRequestStatus = "pending" | "approved" | "rejected"
+export type EnrichmentMode = "manual" | "assist" | "autopilot"
 
 export interface SubscriptionPlan {
   id: string
@@ -96,6 +97,10 @@ export interface PilotRequest {
   description: string | null
   file_path: string | null
   status: PilotRequestStatus
+  fit_score: number | null
+  enrichment_data: Record<string, any> | null
+  turnstile_verified: boolean
+  lead_source: string
 }
 
 export interface PilotRequestAttachment {
@@ -136,4 +141,12 @@ export interface GlobalLedgerTransaction extends CreditLedger {
 
 export interface PilotRequestWithAttachments extends PilotRequest {
   attachments: PilotRequestAttachment[]
+}
+
+export interface SystemSettings {
+  id: number
+  enrichment_mode: EnrichmentMode
+  max_daily_leads: number
+  created_at: string
+  updated_at: string
 }

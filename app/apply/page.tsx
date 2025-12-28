@@ -1,18 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { uploadPilotFile } from "@/actions/pilot-requests"
+import { uploadPilotFile, submitPilotRequest } from "@/actions/pilot-requests"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useFormStatus } from "react-dom"
-import { Upload, CheckCircle2, AlertCircle } from "lucide-react"
+import { Upload, CheckCircle2, AlertCircle, Shield } from "lucide-react"
+import { Turnstile } from "@marsidev/react-turnstile"
 
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled?: boolean }) {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" className="w-full" disabled={pending}>
+    <Button type="submit" className="w-full" disabled={pending || disabled}>
       {pending ? "Skickar ansökan..." : "Skicka ansökan"}
     </Button>
   )
@@ -23,12 +24,20 @@ export default function ApplyPage() {
   const [success, setSuccess] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
 
   async function handleSubmit(formData: FormData) {
     setError(null)
     setUploading(true)
 
     try {
+      // Verify Turnstile token is present
+      if (!turnstileToken) {
+        setError("Säkerhetsverifiering krävs. Vänligen slutför CAPTCHA.")
+        setUploading(false)
+        return
+      }
+
       let uploadedFiles: Array<{ path: string; name: string; type: string; size: number }> = []
 
       // Upload all selected files in parallel for better performance
@@ -55,27 +64,16 @@ export default function ApplyPage() {
         }))
       }
 
-      // Submit pilot request via Edge Function (secure, bypasses RLS)
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/submit-pilot-request`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            email: formData.get("email") as string,
-            contact_name: formData.get("contact_name") as string,
-            company_name: formData.get("company_name") as string,
-            org_nr: formData.get("org_nr") as string || undefined,
-            description: formData.get("description") as string || undefined,
-            files: uploadedFiles,
-          }),
-        }
-      )
-
-      const result = await response.json()
+      // Submit pilot request with Turnstile verification (Sprint 6)
+      const result = await submitPilotRequest({
+        email: formData.get("email") as string,
+        contact_name: formData.get("contact_name") as string,
+        company_name: formData.get("company_name") as string,
+        org_nr: formData.get("org_nr") as string || undefined,
+        description: formData.get("description") as string || undefined,
+        turnstile_token: turnstileToken,
+        files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+      })
 
       if (!result.success) {
         console.error("Error creating pilot request:", result.error)
@@ -83,6 +81,8 @@ export default function ApplyPage() {
       } else {
         console.log("Success! Created pilot request:", result.data)
         setSuccess(true)
+        // Reset Turnstile for next submission
+        setTurnstileToken(null)
       }
     } catch (err) {
       setError("Ett oväntat fel uppstod. Försök igen.")
@@ -157,8 +157,9 @@ export default function ApplyPage() {
             <Button
               variant="outline"
               onClick={() => {
-      setSuccess(false)
-      setSelectedFiles([])
+                setSuccess(false)
+                setSelectedFiles([])
+                setTurnstileToken(null)
               }}
             >
               Skicka en ny ansökan
@@ -308,7 +309,36 @@ export default function ApplyPage() {
               </div>
             )}
 
-            <SubmitButton />
+            {/* Cloudflare Turnstile - Sprint 6 Security */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Säkerhetsverifiering <span className="text-destructive">*</span>
+              </label>
+              <div className="flex justify-center p-4 bg-muted/30 rounded-md">
+                <Turnstile
+                  siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
+                  onSuccess={(token) => {
+                    setTurnstileToken(token)
+                    setError(null)
+                  }}
+                  onError={() => {
+                    setTurnstileToken(null)
+                    setError("Säkerhetsverifiering misslyckades. Ladda om sidan och försök igen.")
+                  }}
+                  onExpire={() => {
+                    setTurnstileToken(null)
+                  }}
+                />
+              </div>
+              {!turnstileToken && (
+                <p className="text-xs text-muted-foreground">
+                  Slutför säkerhetsverifieringen för att kunna skicka ansökan.
+                </p>
+              )}
+            </div>
+
+            <SubmitButton disabled={!turnstileToken} />
           </form>
         </CardContent>
       </Card>
