@@ -12,6 +12,9 @@ export const PROMPT_TYPES = {
   INTERNAL_SPEC: 'internal-spec',
   ORG_ENRICHMENT_SYSTEM: 'org-enrichment-system',
   ORG_ENRICHMENT_USER: 'org-enrichment-user',
+  SDR_STARTERS_SYSTEM: 'sdr-starters-system',
+  SDR_STARTERS_USER: 'sdr-starters-user',
+  SDR_CHAT_SYSTEM: 'sdr-chat-system',
 } as const;
 
 export type PromptType = typeof PROMPT_TYPES[keyof typeof PROMPT_TYPES];

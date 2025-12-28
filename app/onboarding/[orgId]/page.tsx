@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation"
 import { OnboardingHeader } from "@/components/onboarding/onboarding-header"
 import { OnboardingHero } from "@/components/onboarding/onboarding-hero"
-import { StarterCards } from "@/components/onboarding/starter-cards"
-import { ChatInterface } from "@/components/onboarding/chat-interface"
+import { OnboardingClient } from "@/components/onboarding/onboarding-client"
 import { getOrganizationForOnboarding } from "@/actions/onboarding"
 
 interface OnboardingRoomProps {
@@ -29,10 +28,7 @@ export default async function OnboardingRoom({ params }: OnboardingRoomProps) {
       <main className="container mx-auto px-6 py-12 max-w-7xl">
         <OnboardingHero companyName={organization.name} />
 
-        <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <StarterCards />
-          <ChatInterface />
-        </div>
+        <OnboardingClient orgId={orgId} />
       </main>
     </div>
   )

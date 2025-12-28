@@ -6,8 +6,9 @@
 
 **Strategi:** "Experience First". Vi använder en öppen route (`/onboarding/[orgId]`) utan inloggning för att snabbt iterera på säljupplevelsen.
 
-**Status:** 🏃 In Progress
+**Status:** ✅ Completed
 **Startdatum:** 2025-12-28
+**Slutdatum:** 2025-12-28
 
 ---
 
@@ -62,7 +63,38 @@
 ---
 
 ### 📝 Definition of Done
-1.  Jag kan gå till `/onboarding/[giltigt-org-id]`.
-2.  Jag ser kundens namn i headern.
-3.  Inom 2 sekunder dyker 3 skräddarsydda förslag upp (genererade av AI).
-4.  Jag kan klicka på ett förslag -> Texten dyker upp i chatten -> Chatten svarar (även om svaret är enkelt just nu).
+1. ✅ Jag kan gå till `/onboarding/[giltigt-org-id]`.
+2. ✅ Jag ser kundens namn i headern.
+3. ✅ Inom 2 sekunder dyker 3 skräddarsydda förslag upp (genererade av AI).
+4. ✅ Jag kan klicka på ett förslag -> Texten dyker upp i chatten -> Chatten svarar (även om svaret är enkelt just nu).
+
+---
+
+## 📦 Implementerade Filer
+
+### Components
+- `components/onboarding/onboarding-header.tsx` - Header med logo + företagsnamn
+- `components/onboarding/onboarding-hero.tsx` - Personlig välkomsthälsning
+- `components/onboarding/onboarding-client.tsx` - Client wrapper för state
+- `components/onboarding/prompt-starters.tsx` - AI-genererade förslag
+- `components/onboarding/sdr-chat.tsx` - Chat interface med Vercel AI SDK
+- `components/onboarding/starter-cards.tsx` - Deprecated (ersatt av prompt-starters)
+- `components/onboarding/chat-interface.tsx` - Deprecated (ersatt av sdr-chat)
+
+### Pages & API
+- `app/onboarding/[orgId]/page.tsx` - Server Component för onboarding
+- `app/onboarding/[orgId]/not-found.tsx` - 404-sida
+- `app/api/onboarding-chat/route.ts` - Chat API endpoint
+
+### Actions & Services
+- `actions/onboarding.ts` - Hämta organisation för onboarding
+- `actions/ai-sdr.ts` - Generera prompt starters med AI
+- `lib/ai/prompt-service.ts` - Uppdaterad med SDR prompt types
+
+### Database
+- `supabase/seed_sdr_prompts.sql` - Seed för SDR-prompter
+
+### Documentation
+- `docs/sprint_9_implementation.md` - Detaljerad implementation guide
+
+Se `docs/sprint_9_implementation.md` för fullständig dokumentation.
