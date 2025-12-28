@@ -5,6 +5,7 @@ import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { getActivePrompt, PROMPT_TYPES } from '@/lib/ai/prompt-service'
 
 // Schema for the AI analysis result
 const AnalysisSchema = z.object({
@@ -48,17 +49,17 @@ export async function analyzeLeadAction(requestId: string): Promise<{
       }
     }
 
-    // Step 2: Build the AI prompt with ICP context
-    const systemPrompt = `
+    // Step 2: Build the AI prompt with context from database or fallback
+    const systemPromptFallback = `
       Du är en senior affärsanalytiker och SDR (Sales Development Representative) för SaaS-plattformen 'IT By Design'.
       Din uppgift är att använda Google Search för att verifiera fakta och sammanställa information om potentiella kunder.
       Svara alltid på svenska och basera din bedömning på faktabaserad information.
     `.trim();
 
-    const prompt = `
+    const userPromptFallback = `
       Analysera följande lead:
-      FÖRETAG: ${req.company_name}${req.org_nr ? ` (Org nr: ${req.org_nr})` : ''}
-      KUNDENS BESKRIVNING: ${req.description || 'Ingen beskrivning tillhandahållen'}
+      FÖRETAG: {{company_name}}{{org_nr_info}}
+      KUNDENS BESKRIVNING: {{description}}
 
       ICP (Ideal Customer Profile) - Prioritera dessa:
       - Branscher: Bygg, Transport, Handel, Konsult, Tillverkning
@@ -74,6 +75,15 @@ export async function analyzeLeadAction(requestId: string): Promise<{
          - 0-49: Låg match.
       3. Om information saknas, skriv "Okänt" i relevanta fält och gör en rimlig bedömning av Fit Score.
     `.trim();
+
+    const [systemPrompt, prompt] = await Promise.all([
+      getActivePrompt(PROMPT_TYPES.LEAD_ANALYSIS_SYSTEM, {}, systemPromptFallback),
+      getActivePrompt(PROMPT_TYPES.LEAD_ANALYSIS_USER, {
+        company_name: req.company_name,
+        org_nr_info: req.org_nr ? ` (Org nr: ${req.org_nr})` : '',
+        description: req.description || 'Ingen beskrivning tillhandahållen'
+      }, userPromptFallback)
+    ]);
 
     // Step 3: Call AI with search grounding
     const { output: analysis, usage } = await generateText({

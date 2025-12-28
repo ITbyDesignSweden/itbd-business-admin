@@ -19,6 +19,14 @@ import { updatePrompt, deletePrompt } from '@/actions/ai-prompts';
 import { Pencil, Trash2 } from 'lucide-react';
 import { type AIPrompt } from '@/lib/types/database';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { PROMPT_TYPES } from '@/lib/ai/prompt-service';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -46,10 +54,11 @@ export function EditPromptDialog({ prompt }: EditPromptDialogProps) {
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     const content = formData.get('content') as string;
+    const prompt_type = formData.get('prompt_type') as string;
     const isActive = formData.get('is_active') === 'on';
 
     try {
-      await updatePrompt(prompt.id, { name, content, is_active: isActive });
+      await updatePrompt(prompt.id, { name, content, prompt_type, is_active: isActive });
       
       toast({
         title: 'Prompt uppdaterad',
@@ -113,6 +122,23 @@ export function EditPromptDialog({ prompt }: EditPromptDialogProps) {
                 defaultValue={prompt.name}
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="prompt_type">Typ</Label>
+              <Select name="prompt_type" defaultValue={prompt.prompt_type || PROMPT_TYPES.CUSTOMER_CHAT}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Välj typ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={PROMPT_TYPES.CUSTOMER_CHAT}>Kundchatt (AI Architect)</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.LEAD_ANALYSIS_SYSTEM}>Lead Analys (System)</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.LEAD_ANALYSIS_USER}>Lead Analys (User)</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.INTERNAL_SPEC}>Teknisk Specifikation</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.ORG_ENRICHMENT_SYSTEM}>Företagsanalys (System)</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.ORG_ENRICHMENT_USER}>Företagsanalys (User)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

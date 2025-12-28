@@ -35,3 +35,4 @@ COMMENT ON VIEW organizations_with_credits IS 'Aggregated view of organizations 
 
 
 
+

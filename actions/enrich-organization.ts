@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import { revalidatePath } from 'next/cache';
+import { getActivePrompt, PROMPT_TYPES } from '@/lib/ai/prompt-service';
 
 /**
  * Enrich Organization Profile using Google Search Grounding
@@ -53,16 +54,12 @@ export async function enrichOrganizationProfile(
     console.log('🔍 Enriching organization:', organization.name);
     console.log('🌐 Website:', organization.website_url || 'None provided');
 
-    const { text,  usage } = await generateText({
-      model: (google as any)('gemini-3-flash-preview'),
-      tools: {
-        google_search: google.tools.googleSearch({}),
-      },
-      system: `Du är en affärsanalytiker som specialiserat dig på svensk företagsanalys. 
+    const systemPromptFallback = `Du är en affärsanalytiker som specialiserat dig på svensk företagsanalys. 
 Din uppgift är att använda Google Search för att verifiera och sammanställa information om företag.
-Svara alltid på svenska och fokusera på faktabaserad, säljstödjande information.`,
-      prompt: `Skapa en detaljerad företagsprofil för: ${organization.name}
-${websiteInfo}
+Svara alltid på svenska och fokusera på faktabaserad, säljstödjande information.`;
+
+    const userPromptFallback = `Skapa en detaljerad företagsprofil för: {{organization_name}}
+{{website_info}}
 
 Använd Google Search för att hitta aktuell information och inkludera följande:
 
@@ -83,7 +80,23 @@ Använd Google Search för att hitta aktuell information och inkludera följande
    - Omsättning (om publikt tillgänglig)
 
 Formatera svaret som en löpande, professionell text som kan användas i ett CRM-system.
-Håll tonen säljstödjande men faktabaserad. Max 200 ord.`,
+Håll tonen säljstödjande men faktabaserad. Max 200 ord.`;
+
+    const [systemPrompt, prompt] = await Promise.all([
+      getActivePrompt(PROMPT_TYPES.ORG_ENRICHMENT_SYSTEM, {}, systemPromptFallback),
+      getActivePrompt(PROMPT_TYPES.ORG_ENRICHMENT_USER, {
+        organization_name: organization.name,
+        website_info: websiteInfo
+      }, userPromptFallback)
+    ]);
+
+    const { text,  usage } = await generateText({
+      model: (google as any)('gemini-3-flash-preview'),
+      tools: {
+        google_search: google.tools.googleSearch({}),
+      },
+      system: systemPrompt,
+      prompt: prompt,
     });
 
     console.log('✅ Profile generated');

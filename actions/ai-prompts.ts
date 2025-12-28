@@ -7,14 +7,15 @@ import { AIPrompt } from '@/lib/types/database';
 /**
  * Create a new AI prompt
  */
-export async function createPrompt(data: { name: string; content: string; is_active: boolean }) {
+export async function createPrompt(data: { name: string; content: string; prompt_type: string; is_active: boolean }) {
   const supabase = await createClient();
 
-  // Om den nya prompten ska vara aktiv, inaktivera alla andra först
+  // Om den nya prompten ska vara aktiv, inaktivera alla andra av samma typ först
   if (data.is_active) {
     await supabase
       .from('ai_prompts')
       .update({ is_active: false })
+      .eq('prompt_type', data.prompt_type)
       .eq('is_active', true);
   }
 
@@ -23,6 +24,7 @@ export async function createPrompt(data: { name: string; content: string; is_act
     .insert({
       name: data.name,
       content: data.content,
+      prompt_type: data.prompt_type,
       is_active: data.is_active,
     })
     .select()
@@ -40,14 +42,15 @@ export async function createPrompt(data: { name: string; content: string; is_act
 /**
  * Update an existing prompt
  */
-export async function updatePrompt(id: string, data: { name: string; content: string; is_active: boolean }) {
+export async function updatePrompt(id: string, data: { name: string; content: string; prompt_type: string; is_active: boolean }) {
   const supabase = await createClient();
 
-  // Om prompten ska aktiveras, inaktivera alla andra först
+  // Om prompten ska aktiveras, inaktivera alla andra av samma typ först
   if (data.is_active) {
     await supabase
       .from('ai_prompts')
       .update({ is_active: false })
+      .eq('prompt_type', data.prompt_type)
       .neq('id', id);
   }
 
@@ -56,6 +59,7 @@ export async function updatePrompt(id: string, data: { name: string; content: st
     .update({
       name: data.name,
       content: data.content,
+      prompt_type: data.prompt_type,
       is_active: data.is_active,
       updated_at: new Date().toISOString(),
     })
@@ -75,16 +79,17 @@ export async function updatePrompt(id: string, data: { name: string; content: st
 /**
  * Toggle prompt active status
  */
-export async function togglePromptActive(id: string, currentStatus: boolean) {
+export async function togglePromptActive(id: string, currentStatus: boolean, promptType: string) {
   const supabase = await createClient();
 
   const newStatus = !currentStatus;
 
-  // Om vi aktiverar denna prompt, inaktivera alla andra
+  // Om vi aktiverar denna prompt, inaktivera alla andra av samma typ
   if (newStatus) {
     await supabase
       .from('ai_prompts')
       .update({ is_active: false })
+      .eq('prompt_type', promptType)
       .neq('id', id);
   }
 

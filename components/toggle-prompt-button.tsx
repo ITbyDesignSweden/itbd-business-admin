@@ -10,22 +10,23 @@ interface TogglePromptButtonProps {
   promptId: string;
   isActive: boolean;
   promptName: string;
+  promptType: string;
 }
 
-export function TogglePromptButton({ promptId, isActive, promptName }: TogglePromptButtonProps) {
+export function TogglePromptButton({ promptId, isActive, promptName, promptType }: TogglePromptButtonProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   async function handleToggle() {
     setLoading(true);
     try {
-      await togglePromptActive(promptId, isActive);
+      await togglePromptActive(promptId, isActive, promptType);
       
       toast({
         title: isActive ? 'Prompt inaktiverad' : 'Prompt aktiverad',
         description: isActive 
           ? `${promptName} är nu inaktiv.`
-          : `${promptName} är nu aktiv och används av AI Architect.`,
+          : `${promptName} är nu aktiv och används för ${promptType}.`,
       });
     } catch (error) {
       toast({

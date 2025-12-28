@@ -17,6 +17,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { createPrompt } from '@/actions/ai-prompts';
 import { Plus } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { PROMPT_TYPES } from '@/lib/ai/prompt-service';
 
 export function CreatePromptDialog() {
   const [open, setOpen] = useState(false);
@@ -30,10 +38,11 @@ export function CreatePromptDialog() {
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     const content = formData.get('content') as string;
+    const prompt_type = formData.get('prompt_type') as string;
     const isActive = formData.get('is_active') === 'on';
 
     try {
-      await createPrompt({ name, content, is_active: isActive });
+      await createPrompt({ name, content, prompt_type, is_active: isActive });
       
       toast({
         title: 'Prompt skapad',
@@ -78,6 +87,23 @@ export function CreatePromptDialog() {
                 placeholder="t.ex. sales_architect_v2"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="prompt_type">Typ</Label>
+              <Select name="prompt_type" defaultValue={PROMPT_TYPES.CUSTOMER_CHAT}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Välj typ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={PROMPT_TYPES.CUSTOMER_CHAT}>Kundchatt (AI Architect)</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.LEAD_ANALYSIS_SYSTEM}>Lead Analys (System)</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.LEAD_ANALYSIS_USER}>Lead Analys (User)</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.INTERNAL_SPEC}>Teknisk Specifikation</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.ORG_ENRICHMENT_SYSTEM}>Företagsanalys (System)</SelectItem>
+                  <SelectItem value={PROMPT_TYPES.ORG_ENRICHMENT_USER}>Företagsanalys (User)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

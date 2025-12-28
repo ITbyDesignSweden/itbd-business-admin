@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
+import { getActivePrompt, PROMPT_TYPES } from '@/lib/ai/prompt-service';
 
 /**
  * Generate Internal Technical Specification
@@ -63,24 +64,24 @@ export async function generateInternalSpec(
 
     const existingSchema = instanceData?.database_schema || 'Inget schema tillgängligt ännu.';
 
-    // Konstruera prompt för Technical Lead AI
-    const technicalPrompt = `Du är en Technical Lead på IT by Design. 
+    // Konstruera prompt för Technical Lead AI med fallback
+    const technicalPromptFallback = `Du är en Technical Lead på IT by Design. 
 Din uppgift är att ta en säljkonversation och omvandla den till en strukturerad teknisk kravspecifikation för utvecklare.
 
 ### KUNDINFO
-- **Kund:** ${org.name}
-- **Bransch:** ${org.business_profile || 'Okänd'}
-- **Uppskattad kostnad:** ${estimatedCredits} krediter
+- **Kund:** {{org_name}}
+- **Bransch:** {{business_profile}}
+- **Uppskattad kostnad:** {{estimatedCredits}} krediter
 
 ### KUNDENS ÖNSKEMÅL
-${featureSummary}
+{{featureSummary}}
 
 ### KONTEXT FRÅN KONVERSATIONEN
-${customerContext}
+{{customerContext}}
 
 ### BEFINTLIGT SCHEMA (Om systemet redan har databas)
 \`\`\`sql
-${existingSchema}
+{{existingSchema}}
 \`\`\`
 
 ---
@@ -117,12 +118,21 @@ Skapa en teknisk kravspecifikation i Markdown med följande struktur:
 2. ...
 
 ## 📊 Estimat
-- **Krediter:** ${estimatedCredits}
+- **Krediter:** {{estimatedCredits}}
 - **Estimerad tid:** [X timmar]
 
 ## 🚀 Deployment Notes
 [Eventuella viktiga saker att tänka på vid deploy]
 `;
+
+    const technicalPrompt = await getActivePrompt(PROMPT_TYPES.INTERNAL_SPEC, {
+      org_name: org.name,
+      business_profile: org.business_profile || 'Okänd',
+      estimatedCredits,
+      featureSummary,
+      customerContext,
+      existingSchema
+    }, technicalPromptFallback);
 
     console.log('=== Generating Technical Spec with Gemini ===');
 

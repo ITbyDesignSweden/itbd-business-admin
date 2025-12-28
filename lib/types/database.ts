@@ -71,6 +71,7 @@ export interface AIPrompt {
   id: string
   name: string
   content: string
+  prompt_type: string
   is_active: boolean
   created_at: string
   updated_at: string
