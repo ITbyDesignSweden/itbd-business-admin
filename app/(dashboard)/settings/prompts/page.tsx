@@ -1,19 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { EditPromptDialog } from '@/components/edit-prompt-dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreatePromptDialog } from '@/components/create-prompt-dialog';
-import { TogglePromptButton } from '@/components/toggle-prompt-button';
-import { PROMPT_TYPES } from '@/lib/ai/prompt-service';
-
-const CATEGORY_LABELS: Record<string, string> = {
-  [PROMPT_TYPES.CUSTOMER_CHAT]: 'Kundchatt (AI Architect)',
-  [PROMPT_TYPES.LEAD_ANALYSIS_SYSTEM]: 'Lead Analys (System)',
-  [PROMPT_TYPES.LEAD_ANALYSIS_USER]: 'Lead Analys (User)',
-  [PROMPT_TYPES.INTERNAL_SPEC]: 'Teknisk Specifikation',
-  [PROMPT_TYPES.ORG_ENRICHMENT_SYSTEM]: 'Företagsanalys (System)',
-  [PROMPT_TYPES.ORG_ENRICHMENT_USER]: 'Företagsanalys (User)',
-};
+import { PromptsTable } from '@/components/prompts-table';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,75 +35,7 @@ export default async function PromptsPage() {
         <CreatePromptDialog />
       </div>
 
-      <div className="grid gap-8">
-        {prompts.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground">
-                Inga prompts finns ännu. Skapa en för att komma igång.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          Object.entries(CATEGORY_LABELS).map(([type, label]) => {
-            const typePrompts = prompts.filter(p => (p.prompt_type || PROMPT_TYPES.CUSTOMER_CHAT) === type);
-            if (typePrompts.length === 0) return null;
-
-            return (
-              <div key={type} className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  {label}
-                  <Badge variant="outline" className="ml-2">
-                    {typePrompts.length}
-                  </Badge>
-                </h2>
-                <div className="grid gap-4">
-                  {typePrompts.map((prompt) => (
-                    <Card key={prompt.id} className={prompt.is_active ? 'border-green-500 bg-green-50/10' : ''}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <CardTitle className="flex items-center gap-2">
-                              {prompt.name}
-                              {prompt.is_active && (
-                                <Badge variant="default" className="bg-green-600">
-                                  Aktiv
-                                </Badge>
-                              )}
-                            </CardTitle>
-                            <CardDescription>
-                              Skapad: {new Date(prompt.created_at).toLocaleDateString('sv-SE')}
-                              {prompt.updated_at && prompt.updated_at !== prompt.created_at && (
-                                <> • Uppdaterad: {new Date(prompt.updated_at).toLocaleDateString('sv-SE')}</>
-                              )}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <TogglePromptButton 
-                              promptId={prompt.id} 
-                              isActive={prompt.is_active}
-                              promptName={prompt.name}
-                              promptType={type}
-                            />
-                            <EditPromptDialog prompt={prompt} />
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="rounded-md bg-muted p-4">
-                          <pre className="text-sm whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">
-                            {prompt.content}
-                          </pre>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+      <PromptsTable prompts={prompts} />
 
       <Card className="bg-blue-50 border-blue-200">
         <CardHeader>
