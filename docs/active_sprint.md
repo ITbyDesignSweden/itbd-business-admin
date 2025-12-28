@@ -1,134 +1,139 @@
-# Active Sprint: The Gatekeeper (Sprint 6)
+# Active Sprint: The SDR Brain (Sprint 7)
 
-**Status:** ✅ Komplett
-**Startdatum:** 2025-01-05
-**Slutdatum:** 2025-01-28
-**Fokus:** Säkra inflödet och aktivera Admin-funktionerna. Vi bygger på befintlig `PilotRequest`-logik med Cloudflare Turnstile och lägger till fält för kommande AI-analys.
+**Status:** 🟢 Planerad
+**Startdatum:** 2025-01-08
+**Fokus:** AI-driven research och kvalificering. Vi kopplar på Google Search för att automatiskt berika inkomna leads med finansiell data och sätta en "Fit Score".
 
 ---
 
 ## 🎯 Sprint Mål
-1.  **Säkerhet:** Skydda `/apply` (skapandet av requests) med Cloudflare Turnstile.
-2.  **Data:** Migrera databasen för att stödja AI-data och globala systeminställningar.
-3.  **Admin:** Koppla upp UI-knappar ("Godkänn"/"Neka") mot den befintliga funktionen `updatePilotRequestStatus`.
+Att göra systemet intelligent. När ett lead kommer in (eller via knapptryck) ska AI:n söka upp bolaget, hitta omsättning/bransch, bedöma hur väl de passar vår ICP (Ideal Customer Profile) och spara resultatet i databasen.
 
 ---
 
 ## 📋 Backlog & Tasks
 
-### 1. Database: Prep for Enrichment & Settings ✅
-*Vi behöver plats för rådata och en "nödbroms" för systemet.*
+### 1. The Analyst Engine (Backend)
+*Hjärnan som utför jobbet.*
 
-- [x] **Migration `system_settings` (Ny tabell):**
-  - Skapa en singleton-tabell (endast 1 rad tillåten).
-  - Kolumner: 
-    - `enrichment_mode` (enum: 'manual', 'assist', 'autopilot').
-    - `max_daily_leads` (int).
-- [x] **Migration `pilot_requests` (Uppdatering):**
-  - Lägg till kolumner för spårbarhet och framtida AI:
-    - `enrichment_data` (jsonb, nullable) – *Plats för rådata från research.*
-    - `fit_score` (int, nullable) – *Plats för AI-poäng.*
-    - `turnstile_verified` (boolean, default false).
-    - `lead_source` (text, default 'web_form').
+- [ ] **AI Configuration:**
+  - Säkerställ att `google-ai-sdk` (Vercel AI SDK) är uppsatt.
+  - Verifiera att modellen (Gemini 1.5 Pro/Flash eller 2.0) har tillgång till `useSearchGrounding: true`.
+- [ ] **Server Action: `analyzeLeadAction(requestId)`:**
+  - 1. Hämta leadet från `pilot_requests` via ID.
+  - 2. Hämta `system_settings` för att se om enrichment är påslaget.
+  - 3. **AI-anrop:** Använd `generateText` med `output: object({ schema })` för strukturerad output. Instruktion: "Sök fakta om bolag X. Returnera JSON med omsättning, anställda, bransch."
+  - 4. **Scoring:** AI:n ska sätta 0-100 poäng baserat på vår ICP.
+  - 5. **Spara:** Uppdatera `pilot_requests` med resultatet i kolumnerna `enrichment_data` (JSON) och `fit_score` (Int).
 
-### 2. Security: Cloudflare Turnstile (`/apply`) ✅
-*Skydda endpointen som skapar förfrågningar.*
+### 2. Admin UI: Visualization
+*Visa resultatet för admin.*
 
-- [x] **Setup:**
-  - Hämta Site Key & Secret Key från Cloudflare Dashboard.
-  - Spara keys i `.env.local`.
-- [x] **Frontend (`/apply/page.tsx`):**
-  - Integrera `<Turnstile />` i formuläret.
-  - Kräv en giltig token för att aktivera submit-knappen.
-- [x] **Backend (Ny Action: `submitPilotRequest`):**
-  - Skapa en Server Action som anropas av formuläret.
-  - **Steg 1:** Verifiera Turnstile-token mot Cloudflare (se Tech Notes).
-  - **Steg 2:** Kolla `system_settings` (valfritt: stoppa om inflödet är pausat).
-  - **Steg 3:** Spara till `pilot_requests` med `turnstile_verified: true`.
+- [ ] **Update Pilot Request List (`/admin/pilot-requests`):**
+  - Visa "Fit Score" som en "Badge" i tabellen:
+    - 🟢 > 80 (High Fit)
+    - 🟡 50-79 (Medium Fit)
+    - 🔴 < 50 (Low Fit)
+  - Lägg till en knapp: **"✨ Analysera"** på varje rad (för att köra analysen manuellt/omkörning).
+- [ ] **Detail View (Tooltip/Expand):**
+  - Visa AI:ns motivering (`reasoning`) när man hovrar över poängen eller klickar på raden.
 
-### 3. Admin UI: Activate the Inbox ✅
-*Gör listan interaktiv med din befintliga kod.*
+### 3. Automation Hook (The Loop)
+*Koppla ihop intaget med hjärnan.*
 
-- [x] **UI Update (`/admin/pilot-requests`):**
-  - I listvyn, lägg till en kolumn "Actions".
-  - Lägg till knapp: **✅ Godkänn**. Anropa `updatePilotRequestStatus({ id, status: 'approved' })`.
-  - Lägg till knapp: **❌ Neka**. Anropa `updatePilotRequestStatus({ id, status: 'rejected' })`.
-  - **OBS:** Detta var redan implementerat från tidigare sprint! ✅
-- [x] **Logic Tweak (`actions/pilot-requests.ts`):**
-  - Uppdatera `updatePilotRequestStatus` så att den vid godkännande kopierar `enrichment_data` till `organizations.business_profile` (om datan finns).
+- [ ] **Update `submitPilotRequest` (från Sprint 6):**
+  - Lägg till logik efter `insert`:
+  - Kolla `system_settings.enrichment_mode`.
+  - Om `assist` eller `autopilot` -> Trigga `analyzeLeadAction(id)` (utan att `await`:a svaret, så användaren slipper vänta).
 
 ---
 
 ## 🛠 Technical Notes
 
-### SQL Migrations
-
-```sql
--- 1. Settings & Enums
-CREATE TYPE enrichment_mode_type AS ENUM ('manual', 'assist', 'autopilot');
-
-CREATE TABLE system_settings (
-  id int PRIMARY KEY DEFAULT 1,
-  enrichment_mode enrichment_mode_type DEFAULT 'manual',
-  max_daily_leads int DEFAULT 10,
-  created_at timestamptz DEFAULT now(),
-  CONSTRAINT single_row CHECK (id = 1)
-);
--- Initiera default-raden
-INSERT INTO system_settings (id) VALUES (1);
-
--- 2. Update PilotRequests table
-ALTER TABLE pilot_requests
-  ADD COLUMN fit_score int,
-  ADD COLUMN enrichment_data jsonb,
-  ADD COLUMN turnstile_verified boolean DEFAULT false,
-  ADD COLUMN lead_source text DEFAULT 'web_form';
-```
-
-### Backend: Turnstile Verification Helper
-Skapa `utils/security.ts`:
+### The "Researcher" Implementation
+Vi använder `generateText` med `output: object({ schema })` för att tvinga AI:n att svara med exakt den JSON-struktur vi behöver för databasen.
 
 ```typescript
-export async function verifyTurnstile(token: string): Promise<boolean> {
-  const secret = process.env.CLOUDFLARE_TURNSTILE_SECRET;
-  if (!secret) {
-    console.warn("Turnstile secret missing, skipping validation (Dev mode)");
-    return true; 
-  }
+// actions/analyze-lead.ts
+'use server'
+import { google } from '@ai-sdk/google';
+import { generateText, Output } from 'ai';
+import { z } from 'zod';
+import { createClient } from '@/lib/supabase/server';
 
-  const formData = new FormData();
-  formData.append('secret', secret);
-  formData.append('response', token);
+// 1. Schemat vi vill att AI ska fylla i
+const AnalysisSchema = z.object({
+  turnover_range: z.string().describe("Omsättningsintervall i SEK, t.ex. '10-20 MKR' eller 'Okänt'"),
+  employee_count: z.string().describe("Antal anställda, t.ex. '15-20' eller 'Okänt'"),
+  industry_sni: z.string().describe("Trolig bransch eller SNI-kod"),
+  summary: z.string().describe("Kort beskrivning av verksamheten (max 2 meningar)"),
+  fit_score: z.number().min(0).max(100).describe("Poäng 0-100 baserat på ICP"),
+  reasoning: z.string().describe("Kort motivering till poängen (max 1 mening)")
+});
+
+export async function analyzeLeadAction(requestId: string) {
+  const supabase = await createClient();
+  
+  // Hämta request
+  const { data: req } = await supabase.from('pilot_requests').select('*').eq('id', requestId).single();
+  if (!req) return;
+
+  const prompt = `
+    ROLL: Senior Affärsanalytiker.
+    UPPGIFT: Analysera potentiell kund för SaaS-plattformen 'IT By Design'.
+    
+    KUND: ${req.company_name} (Org nr: ${req.org_nr || "Okänt"}).
+    
+    ICP (Ideal Customer Profile) - Ger höga poäng:
+    - Bransch: Bygg, Transport, Handel, Konsult.
+    - Storlek: 5-50 anställda.
+    - Omsättning: > 5 MSEK.
+    
+    INSTRUKTION:
+    1. Använd Google Search för att hitta fakta om bolaget (Allabolag, Hemsida, LinkedIn).
+    2. Bedöm hur väl de passar profilen (Fit Score).
+    3. Returnera endast JSON enligt schema.
+  `;
 
   try {
-    const res = await fetch('[https://challenges.cloudflare.com/turnstile/v0/siteverify](https://challenges.cloudflare.com/turnstile/v0/siteverify)', {
-      method: 'POST',
-      body: formData,
+    const { output: analysis } = await generateText({
+      model: google('gemini-1.5-flash', {
+        useSearchGrounding: true,          // <--- AKTIVERAR SÖKMOTORN
+      }),
+      output: Output.object({
+        schema: AnalysisSchema,
+      }),
+      prompt: prompt,
     });
-    const outcome = await res.json();
-    return outcome.success;
-  } catch (e) {
-    console.error("Turnstile error:", e);
-    return false;
+
+    // Spara till DB
+    await supabase.from('pilot_requests').update({
+      enrichment_data: analysis, // Sparar hela JSON-objektet
+      fit_score: analysis.fit_score
+    }).eq('id', requestId);
+
+    return { success: true, data: analysis };
+    
+  } catch (error) {
+    console.error("AI Analysis Failed:", error);
+    return { success: false, error: "Kunde inte analysera bolaget." };
   }
 }
 ```
 
-### Refactoring: Mapping Data on Approval
-I `updatePilotRequestStatus` (inuti `if (validatedData.status === "approved")` blocket):
+### Automation Logic (Non-blocking)
+För att inte göra formuläret långsamt för användaren:
 
 ```typescript
-// ...
-const { data: newOrg, error: orgError } = await supabase
-  .from("organizations")
-  .insert({
-    name: pilotRequest.company_name,
-    org_nr: pilotRequest.org_nr || null,
-    status: "pilot",
-    // NYTT: Om vi har AI-data (Sprint 7), spara den som business_profile
-    business_profile: pilotRequest.enrichment_data 
-      ? JSON.stringify(pilotRequest.enrichment_data) 
-      : null, 
-  })
-// ...
+// I submitPilotRequest action:
+// ... efter insert ...
+
+const settings = await getSystemSettings(); // Hämta din singleton
+if (settings.enrichment_mode !== 'manual') {
+  // Kör analysen i bakgrunden (fire and forget)
+  // Notera: I Vercel serverless kan detta dödas om funktionen avslutas direkt.
+  // För 100% säkerhet, använd `waitUntil` (Next.js 15) eller Inngest/Cron.
+  // För MVP funkar oftast detta om analysen är snabb:
+  analyzeLeadAction(newRequestId).catch(err => console.error(err));
+}
 ```

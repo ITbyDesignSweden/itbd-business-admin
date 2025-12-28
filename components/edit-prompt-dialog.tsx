@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { updatePrompt, deletePrompt } from '@/actions/ai-prompts';
 import { Pencil, Trash2 } from 'lucide-react';
-import { AIPrompt } from '@/actions/ai-prompts';
+import { type AIPrompt } from '@/lib/types/database';
 import {
   AlertDialog,
   AlertDialogAction,

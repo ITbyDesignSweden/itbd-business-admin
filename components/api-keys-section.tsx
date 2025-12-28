@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Key, Trash2, Clock, AlertCircle } from "lucide-react"
 import { GenerateApiKeyDialog } from "@/components/generate-api-key-dialog"
-import { revokeApiKey, deleteApiKey, type ApiKey } from "@/actions/api-keys"
+import { revokeApiKey, deleteApiKey } from "@/actions/api-keys"
+import { type ApiKey } from "@/lib/types/database"
 import { useToast } from "@/components/ui/use-toast"
 import {
   AlertDialog,

@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { PilotRequest, PilotRequestAttachment, PilotRequestWithAttachments } from "@/lib/types/database"
@@ -51,9 +52,10 @@ export async function submitPilotRequest(
     }
 
     const supabase = await createClient()
+    const supabaseAdmin = createAdminClient()
 
     // Step 3: Create pilot request
-    const { data: newRequest, error: requestError } = await supabase
+    const { data: newRequest, error: requestError } = await supabaseAdmin
       .from("pilot_requests")
       .insert({
         email: validatedData.email,
@@ -86,7 +88,7 @@ export async function submitPilotRequest(
         file_size: file.size,
       }))
 
-      const { error: attachmentsError } = await supabase
+      const { error: attachmentsError } = await supabaseAdmin
         .from("pilot_request_attachments")
         .insert(attachments)
 
@@ -94,6 +96,18 @@ export async function submitPilotRequest(
         console.error("Error creating attachments:", attachmentsError)
         // Don't fail the whole request if attachments fail
       }
+    }
+
+    // Step 5: Sprint 7 - Trigger AI analysis if enrichment is enabled
+    if (settings && settings.enrichment_mode !== 'manual') {
+      // Fire and forget - don't await to keep form submission fast
+      // Import dynamically to avoid circular dependencies
+      import('./analyze-lead').then(({ analyzeLeadAction }) => {
+        analyzeLeadAction(newRequest.id).catch(err => 
+          console.error('Background analysis failed:', err)
+        )
+      })
+      console.log(`🧠 AI analysis triggered for lead: ${newRequest.company_name}`)
     }
 
     // Revalidate pilot requests page
@@ -262,7 +276,7 @@ export async function updatePilotRequestStatus(
         .insert({
           name: pilotRequest.company_name,
           org_nr: pilotRequest.org_nr || null,
-          subscription_plan: null, // No plan selected yet - pilot will choose later
+          plan_id: null, // No plan selected yet - pilot will choose later
           status: "pilot", // Start as pilot
           business_profile: pilotRequest.enrichment_data 
             ? JSON.stringify(pilotRequest.enrichment_data) 

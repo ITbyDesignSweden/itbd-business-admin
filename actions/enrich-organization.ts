@@ -53,10 +53,11 @@ export async function enrichOrganizationProfile(
     console.log('🔍 Enriching organization:', organization.name);
     console.log('🌐 Website:', organization.website_url || 'None provided');
 
-    const { text, usage } = await generateText({
-      model: google('gemini-3-flash-preview', {
-        useSearchGrounding: true // Enable Google Search integration
-      }),
+    const { text,  usage } = await generateText({
+      model: (google as any)('gemini-3-flash-preview'),
+      tools: {
+        google_search: google.tools.googleSearch({}),
+      },
       system: `Du är en affärsanalytiker som specialiserat dig på svensk företagsanalys. 
 Din uppgift är att använda Google Search för att verifiera och sammanställa information om företag.
 Svara alltid på svenska och fokusera på faktabaserad, säljstödjande information.`,

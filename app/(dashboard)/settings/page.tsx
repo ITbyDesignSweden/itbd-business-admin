@@ -1,7 +1,9 @@
 import { getCurrentProfile, getSystemStats } from "@/actions/profile"
+import { getSystemSettings } from "@/actions/system-settings"
 import { ProfileForm } from "@/components/profile-form"
 import { SecuritySettings } from "@/components/security-settings"
 import { SystemStatus } from "@/components/system-status"
+import { EnrichmentSettings } from "@/components/enrichment-settings"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,6 +13,7 @@ import { ChevronRight, CreditCard, RefreshCw, Brain } from "lucide-react"
 export default async function SettingsPage() {
   const profile = await getCurrentProfile()
   const systemStats = await getSystemStats()
+  const systemSettings = await getSystemSettings()
 
   if (!profile) {
     return (
@@ -89,6 +92,7 @@ export default async function SettingsPage() {
         <TabsList>
           <TabsTrigger value="profile">Profil</TabsTrigger>
           <TabsTrigger value="security">Säkerhet</TabsTrigger>
+          <TabsTrigger value="enrichment">AI Enrichment</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
         </TabsList>
 
@@ -118,6 +122,21 @@ export default async function SettingsPage() {
               <SecuritySettings profile={profile} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="enrichment" className="space-y-4">
+          {systemSettings ? (
+            <EnrichmentSettings settings={systemSettings} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>AI Enrichment</CardTitle>
+                <CardDescription>
+                  Kunde inte ladda systeminställningar.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="system" className="space-y-4">

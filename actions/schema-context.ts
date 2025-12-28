@@ -41,7 +41,7 @@ async function fetchSchemaFromDatabase(): Promise<string> {
       .order('table_name')
       .order('ordinal_position')
 
-    if (fallbackError) {
+    if (fallbackError || !fallbackData) {
       console.error("Fallback schema query failed:", fallbackError)
       return "Schema introspection unavailable"
     }
@@ -49,7 +49,11 @@ async function fetchSchemaFromDatabase(): Promise<string> {
     return formatSchemaData(fallbackData as SchemaColumn[])
   }
 
-  return formatSchemaData(data)
+  if (!data || !Array.isArray(data)) {
+    return "No tables found"
+  }
+
+  return formatSchemaData(data as SchemaColumn[])
 }
 
 function formatSchemaData(columns: SchemaColumn[]): string {
