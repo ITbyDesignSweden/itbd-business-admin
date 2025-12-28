@@ -1,139 +1,68 @@
-# Active Sprint: The SDR Brain (Sprint 7)
+# active_sprint.md
 
-**Status:** 🟢 Planerad
-**Startdatum:** 2025-01-08
-**Fokus:** AI-driven research och kvalificering. Vi kopplar på Google Search för att automatiskt berika inkomna leads med finansiell data och sätta en "Fit Score".
+## 🏗️ Sprint 9: The SDR Experience
 
----
+**Mål:** Skapa "Säljrummet" (The Onboarding Room) – en dedikerad, exklusiv landningssida där kunden landar efter en intresseanmälan. Fokus är på UX och AI-driven personalisering för att minimera tröskeln till start.
 
-## 🎯 Sprint Mål
-Att göra systemet intelligent. När ett lead kommer in (eller via knapptryck) ska AI:n söka upp bolaget, hitta omsättning/bransch, bedöma hur väl de passar vår ICP (Ideal Customer Profile) och spara resultatet i databasen.
+**Strategi:** "Experience First". Vi använder en öppen route (`/onboarding/[orgId]`) utan inloggning för att snabbt iterera på säljupplevelsen.
 
----
-
-## 📋 Backlog & Tasks
-
-### 1. The Analyst Engine (Backend)
-*Hjärnan som utför jobbet.*
-
-- [ ] **AI Configuration:**
-  - Säkerställ att `google-ai-sdk` (Vercel AI SDK) är uppsatt.
-  - Verifiera att modellen (Gemini 1.5 Pro/Flash eller 2.0) har tillgång till `useSearchGrounding: true`.
-- [ ] **Server Action: `analyzeLeadAction(requestId)`:**
-  - 1. Hämta leadet från `pilot_requests` via ID.
-  - 2. Hämta `system_settings` för att se om enrichment är påslaget.
-  - 3. **AI-anrop:** Använd `generateText` med `output: object({ schema })` för strukturerad output. Instruktion: "Sök fakta om bolag X. Returnera JSON med omsättning, anställda, bransch."
-  - 4. **Scoring:** AI:n ska sätta 0-100 poäng baserat på vår ICP.
-  - 5. **Spara:** Uppdatera `pilot_requests` med resultatet i kolumnerna `enrichment_data` (JSON) och `fit_score` (Int).
-
-### 2. Admin UI: Visualization
-*Visa resultatet för admin.*
-
-- [ ] **Update Pilot Request List (`/admin/pilot-requests`):**
-  - Visa "Fit Score" som en "Badge" i tabellen:
-    - 🟢 > 80 (High Fit)
-    - 🟡 50-79 (Medium Fit)
-    - 🔴 < 50 (Low Fit)
-  - Lägg till en knapp: **"✨ Analysera"** på varje rad (för att köra analysen manuellt/omkörning).
-- [ ] **Detail View (Tooltip/Expand):**
-  - Visa AI:ns motivering (`reasoning`) när man hovrar över poängen eller klickar på raden.
-
-### 3. Automation Hook (The Loop)
-*Koppla ihop intaget med hjärnan.*
-
-- [ ] **Update `submitPilotRequest` (från Sprint 6):**
-  - Lägg till logik efter `insert`:
-  - Kolla `system_settings.enrichment_mode`.
-  - Om `assist` eller `autopilot` -> Trigga `analyzeLeadAction(id)` (utan att `await`:a svaret, så användaren slipper vänta).
+**Status:** 🏃 In Progress
+**Startdatum:** 2025-12-28
 
 ---
 
-## 🛠 Technical Notes
+### 📋 Tickets & Specs
 
-### The "Researcher" Implementation
-Vi använder `generateText` med `output: object({ schema })` för att tvinga AI:n att svara med exakt den JSON-struktur vi behöver för databasen.
+#### 9.1 🏠 The Onboarding Room (Page Shell)
+**Syfte:** Skapa ramen för säljupplevelsen som hämtar kundens kontext.
+* **Fil:** `app/onboarding/[orgId]/page.tsx`
+* **Data Action:** `actions/onboarding.ts` (Hämta `Organization` + parsa `business_profile` JSON).
+* **UI Layout:**
+    * **Header:** Minimalistisk. Endast ITBD-logo + Kundens företagsnamn.
+    * **Hero Section:** Personlig hälsning ("Välkommen [Företag]..."). Använd `enrichment_data.industry` för att sätta kontext.
+    * **Main Grid:** Två kolumner på desktop.
+        * *Vänster:* Statisk info + Prompt Starters (Feature 9.2).
+        * *Höger:* Full-height Chat Interface (Feature 9.3).
+* **Tech:** Server Components. Hantera 404 om `orgId` ej finns.
 
-```typescript
-// actions/analyze-lead.ts
-'use server'
-import { google } from '@ai-sdk/google';
-import { generateText, Output } from 'ai';
-import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+#### 9.2 💡 Dynamic Prompt Starters (The Hook)
+**Syfte:** Generera 3 unika, branschanpassade förslag på vad kunden kan bygga, för att undvika "Blank Page Syndrome".
+* **Fil:** `actions/ai-sdr.ts` (Ny server action).
+* **Logik (Server Side):**
+    * Använd **Vercel AI SDK** (`generateObject`).
+    * **Model:** Google Gemini 2.0 Flash.
+    * **Input:** Kundens `business_profile` (från DB).
+    * **Prompt:** "Du är en expert säljare. Baserat på denna kundprofil, föreslå 3 konkreta pilot-projekt de kan bygga på 1 dag."
+    * **Output Schema (`zod`):**
+        ```typescript
+        z.object({
+          suggestions: z.array(z.object({
+            title: z.string(), // T.ex. "Fordonskoll"
+            description: z.string(), // Säljande pitch (1 mening)
+            prompt: z.string() // Texten som skickas till chatten vid klick
+          }))
+        })
+        ```
+* **UI Component:** `components/onboarding/prompt-starters.tsx`.
+    * Använd `useSWR` eller `useEffect` för att hämta förslagen klient-sides (streaming) så sidan laddar snabbt.
+    * Visa skeletons under laddning.
+    * Vid klick: Skicka texten till Chat-komponenten (via prop eller context).
 
-// 1. Schemat vi vill att AI ska fylla i
-const AnalysisSchema = z.object({
-  turnover_range: z.string().describe("Omsättningsintervall i SEK, t.ex. '10-20 MKR' eller 'Okänt'"),
-  employee_count: z.string().describe("Antal anställda, t.ex. '15-20' eller 'Okänt'"),
-  industry_sni: z.string().describe("Trolig bransch eller SNI-kod"),
-  summary: z.string().describe("Kort beskrivning av verksamheten (max 2 meningar)"),
-  fit_score: z.number().min(0).max(100).describe("Poäng 0-100 baserat på ICP"),
-  reasoning: z.string().describe("Kort motivering till poängen (max 1 mening)")
-});
+#### 9.3 💬 The SDR Chat Interface (UI Only)
+**Syfte:** Gränssnittet där förhandlingen sker.
+* **Fil:** `components/onboarding/sdr-chat.tsx`
+* **Tech:** `useChat` från `ai/react`.
+* **UI Specs:**
+    * Ska fylla hela höjdutrymmet (flex-1).
+    * Bubblor: Tydlig distinktion mellan "SDR Agent" och "Kund".
+    * Input: Clean design, stöd för enter-to-send.
+    * **Empty State:** Om inga meddelanden finns, visa en välkomnande text (eller låt 9.2 fylla utrymmet).
+* **Backend Connect:** Koppla mot en enkel `api/chat`-route (vi implementerar den tunga "Brain"-logiken i Sprint 10, nu ska bara rören fungera).
 
-export async function analyzeLeadAction(requestId: string) {
-  const supabase = await createClient();
-  
-  // Hämta request
-  const { data: req } = await supabase.from('pilot_requests').select('*').eq('id', requestId).single();
-  if (!req) return;
+---
 
-  const prompt = `
-    ROLL: Senior Affärsanalytiker.
-    UPPGIFT: Analysera potentiell kund för SaaS-plattformen 'IT By Design'.
-    
-    KUND: ${req.company_name} (Org nr: ${req.org_nr || "Okänt"}).
-    
-    ICP (Ideal Customer Profile) - Ger höga poäng:
-    - Bransch: Bygg, Transport, Handel, Konsult.
-    - Storlek: 5-50 anställda.
-    - Omsättning: > 5 MSEK.
-    
-    INSTRUKTION:
-    1. Använd Google Search för att hitta fakta om bolaget (Allabolag, Hemsida, LinkedIn).
-    2. Bedöm hur väl de passar profilen (Fit Score).
-    3. Returnera endast JSON enligt schema.
-  `;
-
-  try {
-    const { output: analysis } = await generateText({
-      model: google('gemini-1.5-flash', {
-        useSearchGrounding: true,          // <--- AKTIVERAR SÖKMOTORN
-      }),
-      output: Output.object({
-        schema: AnalysisSchema,
-      }),
-      prompt: prompt,
-    });
-
-    // Spara till DB
-    await supabase.from('pilot_requests').update({
-      enrichment_data: analysis, // Sparar hela JSON-objektet
-      fit_score: analysis.fit_score
-    }).eq('id', requestId);
-
-    return { success: true, data: analysis };
-    
-  } catch (error) {
-    console.error("AI Analysis Failed:", error);
-    return { success: false, error: "Kunde inte analysera bolaget." };
-  }
-}
-```
-
-### Automation Logic (Non-blocking)
-För att inte göra formuläret långsamt för användaren:
-
-```typescript
-// I submitPilotRequest action:
-// ... efter insert ...
-
-const settings = await getSystemSettings(); // Hämta din singleton
-if (settings.enrichment_mode !== 'manual') {
-  // Kör analysen i bakgrunden (fire and forget)
-  // Notera: I Vercel serverless kan detta dödas om funktionen avslutas direkt.
-  // För 100% säkerhet, använd `waitUntil` (Next.js 15) eller Inngest/Cron.
-  // För MVP funkar oftast detta om analysen är snabb:
-  analyzeLeadAction(newRequestId).catch(err => console.error(err));
-}
-```
+### 📝 Definition of Done
+1.  Jag kan gå till `/onboarding/[giltigt-org-id]`.
+2.  Jag ser kundens namn i headern.
+3.  Inom 2 sekunder dyker 3 skräddarsydda förslag upp (genererade av AI).
+4.  Jag kan klicka på ett förslag -> Texten dyker upp i chatten -> Chatten svarar (även om svaret är enkelt just nu).
