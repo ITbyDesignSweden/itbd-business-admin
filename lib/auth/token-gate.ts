@@ -80,3 +80,4 @@ export async function markTokenAsUsed(token: string): Promise<void> {
     .is('used_at', null) // Only update if not already marked
 }
 
+

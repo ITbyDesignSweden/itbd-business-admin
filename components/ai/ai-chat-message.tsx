@@ -1,9 +1,10 @@
 "use client"
 
-import { Bot, Loader2, Sparkles } from "lucide-react"
+import { Bot, Loader2, Sparkles, CheckCircle2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
+import { ProposalCard, ProposalData } from "@/components/onboarding/proposal-card"
 
 export interface ChatMessageProps {
   message: {
@@ -20,12 +21,14 @@ export interface ChatMessageProps {
   }
   assistantIcon?: React.ReactNode
   assistantName?: string
+  token?: string // For onboarding flow (needed for ProposalCard)
 }
 
 export function AIChatMessage({ 
   message, 
   assistantIcon = <Bot className="h-4 w-4" />,
-  assistantName = "AI" 
+  assistantName = "AI",
+  token
 }: ChatMessageProps) {
   const isAssistant = message.role === "assistant"
 
@@ -91,21 +94,36 @@ export function AIChatMessage({
                   );
                 }
 
-                if (part.type === "tool-invocation") {
-                  const { toolInvocation } = part;
-                  const { toolCallId, state, toolName } = toolInvocation;
+                const isToolCall = part.type === "tool-invocation" || part.type.startsWith("tool-");
 
+                if (isToolCall) {
+                  // If type is "tool-invocation", the data is in part.toolInvocation
+                  // If type is "tool-name", the data is in the part itself
+                  const toolInvocation = part.type === "tool-invocation" ? part.toolInvocation : part;
+                  const { toolCallId, state } = toolInvocation;
+                  const toolName = toolInvocation.toolName || part.type.replace("tool-", "");
+
+                  console.log('toolName', toolName);
+                  console.log('state', state);
                   if (state === 'call') {
+                    const loadingMessages: Record<string, string> = {
+                      'submit_feature_request': 'Skapar teknisk specifikation...',
+                      'manage_feature_idea': 'Hanterar idélista...',
+                      'generate_pilot_proposal': 'Skapar förslag...',
+                    }
+                    
                     return (
                       <div key={toolCallId} className="flex items-center gap-2 text-xs text-muted-foreground italic">
                         <Loader2 className="h-3 w-3 animate-spin" />
-                        {toolName === 'submit_feature_request' ? 'Skapar teknisk specifikation...' : `Kör ${toolName}...`}
+                        {loadingMessages[toolName] || `Kör ${toolName}...`}
                       </div>
                     );
                   }
 
                   if (state === 'result') {
                     const { result } = toolInvocation;
+                    
+                    // Handle submit_feature_request (existing)
                     if (toolName === 'submit_feature_request') {
                       if (result.success) {
                         return (
@@ -117,6 +135,36 @@ export function AIChatMessage({
                         return (
                           <div key={toolCallId} className="p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px] text-red-700 dark:text-red-400">
                             ❌ {result.error || 'Fel vid registrering'}
+                          </div>
+                        );
+                      }
+                    }
+                    
+                    // Handle manage_feature_idea (Sprint 10.2)
+                    if (toolName === 'manage_feature_idea') {
+                      if (result.success) {
+                        console.log('manage_feature_idea result', result);
+                        return (
+                          <div key={toolCallId} className="flex items-center gap-1.5 p-2 rounded bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-700 dark:text-blue-400">
+                            <CheckCircle2 className="h-3 w-3" />
+                            {result.message}
+                          </div>
+                        );
+                      }
+                    }
+                    
+                    // Handle generate_pilot_proposal (Sprint 10.3)
+                    if (toolName === 'generate_pilot_proposal') {
+                      if (result.success && result.proposal) {
+                        // Render the proposal card instead of text
+                        if (!token) {
+                          console.warn('Token missing - cannot render ProposalCard')
+                          return null
+                        }
+                        
+                        return (
+                          <div key={toolCallId} className="my-3">
+                            <ProposalCard proposal={result.proposal as ProposalData} token={token} />
                           </div>
                         );
                       }

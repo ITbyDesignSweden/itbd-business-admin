@@ -367,3 +367,4 @@ Server validerar token IGEN
 - `lib/auth/token-gate.ts` - Core validation logic
 - `actions/invitations.ts` - Token management actions
 
+

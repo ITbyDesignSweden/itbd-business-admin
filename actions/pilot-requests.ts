@@ -330,11 +330,12 @@ export async function updatePilotRequestStatus(
       })
     }
 
-    // Update pilot request status
+    // Update pilot request status and link org_id
     const { data, error } = await supabase
       .from("pilot_requests")
       .update({
         status: validatedData.status,
+        org_id: organizationId || null, // Sprint 10: Store the created org_id
       })
       .eq("id", validatedData.id)
       .select()

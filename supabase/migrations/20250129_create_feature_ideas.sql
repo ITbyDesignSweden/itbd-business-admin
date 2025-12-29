@@ -35,3 +35,4 @@ comment on table feature_ideas is 'AI-generated feature ideas and prompt starter
 comment on column feature_ideas.prompt is 'Full prompt text that gets sent to chat when user clicks suggestion';
 comment on column feature_ideas.complexity is 'Optional complexity estimate (null for initial AI suggestions)';
 
+

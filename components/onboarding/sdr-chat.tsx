@@ -61,6 +61,7 @@ export function SDRChat({ chat, token }: SDRChatProps) {
           showWelcome={false}
           allowAttachments={true}
           error={error}
+          token={token}
           className="flex-1 min-h-0"
         />
       </Card>

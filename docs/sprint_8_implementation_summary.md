@@ -172,3 +172,4 @@ Sprint 8 har framgångsrikt implementerat ett säkert token-baserat autentiserin
 - ✅ Tydliga felmeddelanden
 - ✅ Admin kan enkelt generera nya länkar
 
+

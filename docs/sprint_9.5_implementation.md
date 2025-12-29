@@ -191,3 +191,4 @@ Om `supabase db push` ger fel:
 
 **Status:** ✅ COMPLETED
 
+

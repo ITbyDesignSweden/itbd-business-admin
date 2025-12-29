@@ -20,3 +20,4 @@ CREATE INDEX idx_ai_prompts_active_per_type ON ai_prompts(prompt_type, is_active
 COMMENT ON COLUMN ai_prompts.prompt_type IS 'Kategorisering av prompt (t.ex. customer-chat, lead-analysis, internal-spec)';
 
 
+

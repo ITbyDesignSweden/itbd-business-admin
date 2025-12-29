@@ -22,6 +22,7 @@ export interface AIChatInterfaceProps {
   welcomeMessage?: string
   allowAttachments?: boolean
   error?: any
+  token?: string // For onboarding flow
 }
 
 export function AIChatInterface({
@@ -38,7 +39,8 @@ export function AIChatInterface({
   welcomeTitle = "Välkommen!",
   welcomeMessage = "Hur kan jag hjälpa dig idag?",
   allowAttachments = true,
-  error
+  error,
+  token
 }: AIChatInterfaceProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const isLoading = status === 'streaming' || status === 'submitted'
@@ -94,6 +96,7 @@ export function AIChatInterface({
               message={message} 
               assistantIcon={assistantIcon}
               assistantName={assistantName}
+              token={token}
             />
           ))}
 

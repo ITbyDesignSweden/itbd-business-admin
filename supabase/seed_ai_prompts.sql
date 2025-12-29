@@ -147,3 +147,4 @@ Håll tonen säljstödjande men faktabaserad. Max 200 ord.',
 ) ON CONFLICT (name) DO UPDATE SET content = EXCLUDED.content;
 
 
+
