@@ -23,3 +23,4 @@ COMMENT ON COLUMN project_documents.project_id IS 'Referens till projektet dokum
 
 COMMIT;
 
+

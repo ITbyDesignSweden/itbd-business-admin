@@ -15,3 +15,4 @@ export function OnboardingHero({ companyName }: OnboardingHeroProps) {
   )
 }
 
+
