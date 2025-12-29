@@ -69,9 +69,8 @@ export async function POST(req: NextRequest) {
     // 4. Delegate to Core
     return processAiChatStream({
       messages,
-      mode: 'sdr',
-      orgName: org.name,
       systemPrompt,
+      connectionNotificationText: `Ansluter till ITBD SDR...`,
       attachments,
       corsHeaders
     });

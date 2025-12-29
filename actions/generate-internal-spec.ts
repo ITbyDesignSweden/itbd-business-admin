@@ -13,6 +13,7 @@ import { getActivePrompt, PROMPT_TYPES } from '@/lib/ai/prompt-service';
 
 interface GenerateSpecParams {
   projectId: string;
+  orgId: string;	
   featureSummary: string;
   estimatedCredits: number;
   customerContext: string;
@@ -27,7 +28,7 @@ interface GenerateSpecResult {
 export async function generateInternalSpec(
   params: GenerateSpecParams
 ): Promise<GenerateSpecResult> {
-  const { projectId, featureSummary, estimatedCredits, customerContext } = params;
+  const { projectId, orgId, featureSummary, estimatedCredits, customerContext } = params;
 
   // Validera att vi har all nödvändig data
   if (!featureSummary || !customerContext || !estimatedCredits) {
@@ -43,12 +44,18 @@ export async function generateInternalSpec(
 
   try {
     const supabase = await createClient();
+    console.info('=== Generating Internal Spec ===');
+    console.info('Project ID:', projectId);
+    console.info('Org ID:', orgId);
+    console.info('Feature Summary:', featureSummary);
+    console.info('Estimated Credits:', estimatedCredits);
+    console.info('Customer Context:', customerContext);
 
     // Hämta projektinfo för kontext
     const { data: org } = await supabase
       .from('organizations')
       .select('name, business_profile')
-      .eq('id', projectId)
+      .eq('id', orgId)
       .single();
 
     if (!org) {
@@ -59,7 +66,7 @@ export async function generateInternalSpec(
     const { data: instanceData } = await supabase
       .from('saas_instances')
       .select('database_schema')
-      .eq('organization_id', projectId)
+      .eq('organization_id', orgId)
       .single();
 
     const existingSchema = instanceData?.database_schema || 'Inget schema tillgängligt ännu.';

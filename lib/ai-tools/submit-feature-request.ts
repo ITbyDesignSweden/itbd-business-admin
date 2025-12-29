@@ -7,7 +7,7 @@ import { generateInternalSpec } from '@/actions/generate-internal-spec';
  * Triggers when customer approves a feature suggestion
  * Generates internal technical spec using Gemini 3.0 Flash
  */
-export function submitFeatureRequestTool(projectId: string) {
+export function submitFeatureRequestTool(projectId: string, orgId: string) {
   return tool({
     description: `Använd detta verktyg när kunden godkänner/beställer en funktion. 
     Trigger-ord: "Kör på det", "Beställ", "Ja tack", "Skapa det", "Gör så".
@@ -44,6 +44,7 @@ export function submitFeatureRequestTool(projectId: string) {
       try {
         console.log('=== Submit Feature Request Tool Triggered ===');
         console.log('Project:', projectId);
+        console.log('OrgId:', orgId);
         console.log('Summary:', feature_summary);
         console.log('Credits:', estimated_credits);
         console.log('Context length:', customer_context.length);
@@ -51,6 +52,7 @@ export function submitFeatureRequestTool(projectId: string) {
         // Generera teknisk spec internt (dolt för kunden)
         const result = await generateInternalSpec({
           projectId,
+          orgId,
           featureSummary: feature_summary,
           estimatedCredits: estimated_credits,
           customerContext: customer_context,

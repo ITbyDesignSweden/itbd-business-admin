@@ -5,6 +5,7 @@ import { validateApiKey } from '@/lib/api-auth';
 import { getActivePrompt as getPromptFromService, PROMPT_TYPES } from '@/lib/ai/prompt-service';
 import { createClient } from '@/lib/supabase/server';
 import { processAiChatStream, CustomUIMessage } from '@/lib/ai/chat-core';
+import { submitFeatureRequestTool } from '@/lib/ai-tools/submit-feature-request';
 import { UIMessage } from 'ai';
 
 // Rate limiting: Simple in-memory store
@@ -115,6 +116,9 @@ export async function POST(req: NextRequest) {
 
     // 3. Get Project and Verify Access
     const { data: project } = await supabaseAdmin.from('projects').select('org_id').eq('id', projectId).single();
+    const orgId = project?.org_id;
+    console.log('Project:', project);
+    console.log('OrgId:', orgId);
     if (!project) return new Response(JSON.stringify({ error: 'Ogiltigt projekt' }), { status: 404, headers: corsHeaders });
 
     if (isExternal) {
@@ -136,11 +140,12 @@ export async function POST(req: NextRequest) {
 
     // 5. Delegate to Core
     return processAiChatStream({
-      messages,
-      mode: 'architect',
-      projectId,
-      orgName: org.name,
+      messages, 
       systemPrompt,
+      connectionNotificationText: 'Ansluter till ITBD Intelligent Architect...',
+      tools: {
+        submit_feature_request: submitFeatureRequestTool(projectId, orgId),
+      },
       attachments,
       corsHeaders
     });

@@ -33,7 +33,7 @@ COMMENT ON COLUMN organizations.custom_ai_instructions IS 'Kundspecifika AI-inst
 -- Tabell för projektdokument (inkl. auto-genererade specs)
 CREATE TABLE project_documents (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   title text NOT NULL,
   content text NOT NULL,
   is_internal boolean DEFAULT false,

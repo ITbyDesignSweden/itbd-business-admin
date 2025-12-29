@@ -8,7 +8,6 @@ import {
   createAgentUIStream,
   stepCountIs
 } from 'ai';
-import { submitFeatureRequestTool } from '@/lib/ai-tools/submit-feature-request';
 
 export type CustomUIMessage = UIMessage<
   {
@@ -29,10 +28,9 @@ export type CustomUIMessage = UIMessage<
 
 interface ProcessAiChatParams {
   messages: UIMessage[];
-  mode: 'architect' | 'sdr';
-  projectId?: string;
-  orgName: string;
   systemPrompt: string;
+  tools?: Record<string, any>;
+  connectionNotificationText?: string;
   attachments?: Array<{ name: string; url: string; contentType: string }>;
   corsHeaders: Record<string, string>;
 }
@@ -43,10 +41,9 @@ interface ProcessAiChatParams {
  */
 export async function processAiChatStream({
   messages,
-  mode,
-  projectId,
-  orgName,
   systemPrompt,
+  tools = {},
+  connectionNotificationText,
   attachments = [],
   corsHeaders
 }: ProcessAiChatParams) {
@@ -104,19 +101,17 @@ export async function processAiChatStream({
       writer.write({
         type: 'data-notification',
         data: { 
-          message: mode === 'sdr' ? `Ansluter till ITBD SDR...` : 'Ansluter till ITBD Intelligent Architect...', 
+          message: connectionNotificationText || 'Ansluter till ITBD AI...', 
           level: 'info' 
         },
         transient: true,
       });
 
-      // Initialize Agent with tools based on mode
+      // Initialize Agent with tools
       const agent = new ToolLoopAgent({
         model,
         instructions: systemPrompt,
-        tools: (mode === 'architect' && projectId) ? {
-          submit_feature_request: submitFeatureRequestTool(projectId),
-        } : {},
+        tools: tools || {},
         stopWhen: stepCountIs(5),
         onFinish: (result) => {
           const totalUsage = result.steps.reduce((acc, step) => ({
