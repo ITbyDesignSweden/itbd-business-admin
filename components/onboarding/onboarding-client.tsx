@@ -1,5 +1,11 @@
 "use client"
 
+/**
+ * Sprint 8.5: Security Update
+ * Changed from orgId to token-based authentication.
+ * Client components now pass token to server actions instead of orgId.
+ */
+
 import { DefaultChatTransport } from "ai"
 import { PromptStarters } from "./prompt-starters"
 import { SDRChat } from "./sdr-chat"
@@ -8,17 +14,17 @@ import { toast } from "sonner"
 import type { FeatureIdea } from "@/lib/types/database"
 
 interface OnboardingClientProps {
-  orgId: string
+  token: string
   featureIdeas: FeatureIdea[]
 }
 
-export function OnboardingClient({ orgId, featureIdeas }: OnboardingClientProps) {
+export function OnboardingClient({ token, featureIdeas }: OnboardingClientProps) {
   const chat = useChat({
     transport: new DefaultChatTransport({
         api: '/api/onboarding-chat',
       }),
     body: {
-      orgId,
+      token,
     },
     initialMessages: [
       {
@@ -44,7 +50,7 @@ export function OnboardingClient({ orgId, featureIdeas }: OnboardingClientProps)
       { text: prompt },
       {
         body: {
-          orgId,
+          token,
         },
       }
     )
@@ -53,11 +59,11 @@ export function OnboardingClient({ orgId, featureIdeas }: OnboardingClientProps)
   return (
     <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
       <PromptStarters 
-        orgId={orgId} 
+        token={token}
         featureIdeas={featureIdeas}
         onPromptClick={handlePromptClick} 
       />
-      <SDRChat chat={chat} orgId={orgId} />
+      <SDRChat chat={chat} token={token} />
     </div>
   )
 }

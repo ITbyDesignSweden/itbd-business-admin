@@ -16,6 +16,7 @@ import { SubscriptionCard } from "@/components/subscription-card"
 import { ApiKeysSection } from "@/components/api-keys-section"
 import { InstanceManagementCard } from "@/components/instance-management-card"
 import { BusinessProfileCard } from "@/components/business-profile-card"
+import { GenerateInvitationDialog } from "@/components/generate-invitation-dialog"
 
 interface OrganizationPageProps {
   params: Promise<{
@@ -90,6 +91,7 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
             <Badge variant="outline" className={getStatusColor(organization.status)}>
               {getStatusLabel(organization.status)}
             </Badge>
+            <GenerateInvitationDialog orgId={organization.id} orgName={organization.name} />
           </div>
         </div>
         {organization.org_nr && (

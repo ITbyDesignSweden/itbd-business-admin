@@ -1,5 +1,11 @@
 "use client"
 
+/**
+ * Sprint 8.5: Security Update
+ * Changed from orgId to token-based authentication.
+ * The token is now passed to server actions instead of orgId.
+ */
+
 import { Card, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Sparkles } from "lucide-react"
@@ -7,10 +13,10 @@ import { AIChatInterface } from "@/components/ai/ai-chat-interface"
 
 interface SDRChatProps {
   chat: any
-  orgId: string
+  token: string
 }
 
-export function SDRChat({ chat, orgId }: SDRChatProps) {
+export function SDRChat({ chat, token }: SDRChatProps) {
   const { messages, status, error } = chat
   
   return (
@@ -43,13 +49,12 @@ export function SDRChat({ chat, orgId }: SDRChatProps) {
             chat.sendMessage(options, {
               ...config,
               body: {
-                orgId,  // Säkerställ att orgId alltid finns
-                ...config?.body,  // Merga med eventuella andra body-parametrar (som attachments)
+                token,  // Sprint 8.5: Use token instead of orgId
+                ...config?.body,  // Merge with any other body parameters (like attachments)
               },
             })
           }}
-         // extraBody={{ orgId }}
-          storagePathIdentifier={orgId}
+          storagePathIdentifier={token}
           placeholder="Skriv ett meddelande..."
           assistantIcon={<Sparkles className="h-4 w-4 text-primary" />}
           assistantName="ITBD SDR"
