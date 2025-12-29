@@ -16,8 +16,8 @@ export function SDRChat({ chat, orgId }: SDRChatProps) {
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">AI-Assistent</h2>
-      <Card className="flex flex-col h-[420px] overflow-hidden border-border/50 shadow-sm">
-        <CardHeader className="border-b border-border/50 px-5 py-4 shrink-0 bg-muted/5">
+      <Card className="flex flex-col h-[600px] overflow-hidden border-border/50 py-0 shadow-sm gap-0">
+        <CardHeader className="border-b border-border/50 py-6 shrink-0 bg-muted/5 flex items-center">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border border-primary/10 shadow-sm">
