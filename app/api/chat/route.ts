@@ -84,6 +84,10 @@ export async function POST(req: NextRequest) {
   try {
     const { messages, projectId, schema, attachments }: ChatRequestBody = await req.json();
 
+    console.log('=== Architect Chat API Request ===');
+    console.log('Project ID:', projectId);
+    console.log('Messages count:', messages?.length);
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

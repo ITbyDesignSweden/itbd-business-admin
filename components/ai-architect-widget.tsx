@@ -13,6 +13,7 @@ import { getSchemaContext } from "@/actions/schema-context"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { createClient } from "@/lib/supabase/client"
+import { DefaultChatTransport } from 'ai';
 
 interface AiArchitectWidgetProps {
   projectId: string
@@ -34,7 +35,9 @@ export function AiArchitectWidget({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const chat = useChat({
-    api: apiUrl,
+    transport: new DefaultChatTransport({
+      api: '/api/chat',
+    }),
     headers: authToken ? {
       'Authorization': `Bearer ${authToken}`
     } : undefined,

@@ -1,5 +1,6 @@
 "use client"
 
+import { DefaultChatTransport } from "ai"
 import { PromptStarters } from "./prompt-starters"
 import { SDRChat } from "./sdr-chat"
 import { useChat } from "@ai-sdk/react"
@@ -11,7 +12,12 @@ interface OnboardingClientProps {
 
 export function OnboardingClient({ orgId }: OnboardingClientProps) {
   const chat = useChat({
-    api: "/api/onboarding-chat",
+    transport: new DefaultChatTransport({
+        api: '/api/onboarding-chat',
+      }),
+    body: {
+      orgId,
+    },
     initialMessages: [
       {
         id: "welcome",
@@ -28,8 +34,10 @@ export function OnboardingClient({ orgId }: OnboardingClientProps) {
     },
   } as any)
 
+
   const handlePromptClick = (prompt: string, title: string) => {
     console.log('Prompt selected:', title)
+
     chat.sendMessage(
       { text: prompt },
       {

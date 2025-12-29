@@ -18,6 +18,7 @@ export async function OPTIONS() {
 interface ChatRequestBody {
   messages: UIMessage[];
   orgId: string;
+  attachments?: Array<{ name: string; url: string; contentType: string }>;
 }
 
 /**
@@ -26,7 +27,12 @@ interface ChatRequestBody {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { messages, orgId }: ChatRequestBody = await req.json();
+    const { messages, orgId, attachments }: ChatRequestBody = await req.json();
+
+    console.log('=== Onboarding Chat API Request ===');
+    console.log('Org ID:', orgId);
+    console.log('Messages count:', messages?.length);
+    console.log('Attachments:', attachments?.length || 0);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -66,6 +72,7 @@ export async function POST(req: NextRequest) {
       mode: 'sdr',
       orgName: org.name,
       systemPrompt,
+      attachments,
       corsHeaders
     });
 

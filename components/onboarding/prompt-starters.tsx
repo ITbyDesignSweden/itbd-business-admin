@@ -42,7 +42,7 @@ export function PromptStarters({ orgId, onPromptClick }: PromptStartersProps) {
       }
     }
 
-    loadStarters()
+    //loadStarters()
 
     return () => {
       isMounted = false
