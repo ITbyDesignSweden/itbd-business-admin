@@ -1,16 +1,21 @@
 "use client"
 
+/**
+ * Sprint 8.5: Security Update
+ * Changed from orgId to token (token is not used in this component but kept for consistency)
+ */
+
 import { Card, CardContent } from "@/components/ui/card"
 import { ChevronRight, Sparkles, Loader2, MessageSquare } from "lucide-react"
 import type { FeatureIdea } from "@/lib/types/database"
 
 interface PromptStartersProps {
-  orgId: string
+  token: string
   featureIdeas: FeatureIdea[]
   onPromptClick?: (prompt: string, title: string) => void
 }
 
-export function PromptStarters({ orgId, featureIdeas, onPromptClick }: PromptStartersProps) {
+export function PromptStarters({ token, featureIdeas, onPromptClick }: PromptStartersProps) {
   // Sprint 9.5: Data is now fetched server-side and passed as props
   const hasIdeas = featureIdeas && featureIdeas.length > 0
 
