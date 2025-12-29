@@ -44,20 +44,19 @@ async function buildArchitectPrompt(
   customInstructions: string | null,
   schema?: string
 ): Promise<string> {
-  const basePrompt = await getPromptFromService(PROMPT_TYPES.CUSTOMER_CHAT, {}, `Du är ITBD Intelligent Architect...`);
+  const systemPrompt = await getPromptFromService(
+    PROMPT_TYPES.CUSTOMER_CHAT, 
+    {
+      org_name: orgName,
+      business_profile: businessProfile || "Okänd verksamhet",
+      credits: credits ?? 0,
+      schema: schema ? `### NUVARANDE DATABASSTRUKTUR\n${schema}` : '',
+      custom_instructions: customInstructions ? `### KUNDSPECIFIKA INSTRUKTIONER\n${customInstructions}` : ''
+    }, 
+    `Du är ITBD Intelligent Architect...`
+  );
   
-  const contextSection = `
-### KUNDKONTEXT (Aktuell Session)
-- **Kund:** ${orgName}
-- **Verksamhet:** ${businessProfile || "Okänd verksamhet"}
-- **Kreditsaldo:** ${credits ?? 0} krediter
-
-${schema ? `### NUVARANDE DATABASSTRUKTUR\n${schema}\n` : ''}
-${customInstructions ? `### KUNDSPECIFIKA INSTRUKTIONER\n${customInstructions}\n` : ''}
----
-`;
-
-  return contextSection + basePrompt;
+  return systemPrompt;
 }
 
 const corsHeaders = {

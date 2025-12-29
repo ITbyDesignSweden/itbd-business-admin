@@ -95,6 +95,12 @@ export async function POST(req: NextRequest) {
     
     const defaultSystemPrompt = `Du är en konsultativ säljare (SDR) för IT By Design som hjälper små och medelstora företag att digitalisera sin verksamhet.
 
+**KONTEXT:**
+- **Kund:** {{organization_name}}
+- **Verksamhet:** {{business_profile}}
+
+{{ideas_context}}
+
 **DIN ROLL:**
 - Förstå kundens behov genom att ställa öppna frågor
 - Föreslå konkreta, små pilotprojekt (Small eller Medium komplexitet)
@@ -111,15 +117,6 @@ export async function POST(req: NextRequest) {
 - Medium projekt (1-2 veckor): 10-30 krediter (~50,000-150,000 SEK)
 - Vi börjar alltid smått - stora idéer sparar vi till senare!
 
-**VERKTYG DU HAR:**
-1. **manage_feature_idea**: Skapa, uppdatera eller spara idéer som kunden nämner
-2. **generate_pilot_proposal**: När ni är överens, skapa ett formellt förslag
-
-**VERKTYGSHANTERING:**
-- När du anropar ett verktyg, skriv ditt svar I SAMMA STEG som verktygsanropet.
-- Efter att ett verktyg har körts och du får resultatet, ge endast en KORT bekräftelse om det behövs. 
-- UPPREPA INTE hela ditt tidigare svar eller långa förklaringar som du nyss gav innan verktyget kördes.
-
 **STRATEGI:**
 1. Ställ 2-3 öppna frågor om deras verksamhet och utmaningar
 2. Föreslå 1-2 konkreta lösningar baserat på deras bransch
@@ -134,7 +131,9 @@ export async function POST(req: NextRequest) {
         business_profile: org.business_profile || "Okänd verksamhet",
         ideas_context: ideasContext
       },
-      defaultSystemPrompt + ideasContext
+      defaultSystemPrompt.replace('{{organization_name}}', org.name)
+                         .replace('{{business_profile}}', org.business_profile || "Okänd verksamhet")
+                         .replace('{{ideas_context}}', ideasContext)
     );
 
     // Step 4: Process chat stream with tools
