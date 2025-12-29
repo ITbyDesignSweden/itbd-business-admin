@@ -12,14 +12,14 @@ export function generatePilotProposalTool() {
     
     TRIGGER-ORD: "Låter bra", "Vi kör på det", "Ja tack", "Starta", "Gör så"
     
-    Detta kommer att generera ett visuellt förslag som kunden kan godkänna med ett klick.
+    VIKTIGT: Du MÅSTE härleda komplexitet och kostnad från er diskussion:
+    - title: En tydlig rubrik för projektet (minst 5 tecken)
+    - complexity: "small" (1-5 dagar) eller "medium" (1-2 veckor).
+    - estimated_credits: Måste vara ett heltal mellan 1-30. 
+      (Small: 1-10 krediter, Medium: 10-30 krediter).
     
-    VIKTIGT: Förslaget ska vara KONKRET och RIMLIGT:
-    - Komplexitet: "small" = 1-5 dagar, "medium" = 1-2 veckor
-    - Kostnad: Baserat på vad ni diskuterat (1-30 krediter)
-    - Features: 3-5 konkreta funktioner som ingår
-    
-    ALDRIG föreslå "large" projekt - håll det småskaligt för pilot!`,
+    Detta skapar ett visuellt förslag som kunden kan godkänna. 
+    Du får ALDRIG lämna title, complexity eller estimated_credits tomma.`,
     
     parameters: z.object({
       title: z.string().min(5).max(100).describe('Projektets titel, t.ex. "Kundregister för Bilverkstad AB"'),
@@ -37,13 +37,34 @@ export function generatePilotProposalTool() {
       console.log('Title:', title);
       console.log('Complexity:', complexity);
       console.log('Credits:', estimated_credits);
-      console.log('Features:', key_features.length);
-      
-      // Validering
-      if (key_features.length < 3) {
+      console.log('Features:', key_features?.length || 0);
+
+      // Validera obligatoriska fält för att förhindra tekniska fel (NaN/undefined) i resultatet
+      if (!title || title.length < 5) {
         return {
           success: false,
-          error: 'Förslaget måste innehålla minst 3 funktioner',
+          error: 'Titeln är för kort eller saknas. Vänligen ange en tydlig titel på minst 5 tecken.',
+        };
+      }
+
+      if (!complexity) {
+        return {
+          success: false,
+          error: 'Complexity saknas. Du måste välja "small" eller "medium".',
+        };
+      }
+
+      if (estimated_credits === undefined || estimated_credits === null || isNaN(Number(estimated_credits))) {
+        return {
+          success: false,
+          error: 'Du måste ange estimated_credits (1-30) som ett giltigt nummer baserat på prissättningen vi diskuterat.',
+        };
+      }
+            
+      if (!key_features || key_features.length < 3) {
+        return {
+          success: false,
+          error: 'Förslaget måste innehålla minst 3 funktioner i listan key_features.',
         };
       }
       
@@ -54,6 +75,10 @@ export function generatePilotProposalTool() {
         };
       }
       
+      // Beräkna priset säkert
+      const credits = Number(estimated_credits);
+      const priceSek = credits * 5000;
+      
       // Returnera proposal data - frontend kommer att rendera detta som ett kort
       return {
         success: true,
@@ -62,8 +87,8 @@ export function generatePilotProposalTool() {
           summary,
           complexity,
           key_features,
-          estimated_credits,
-          estimated_price_sek: estimated_credits * 5000, // Ungefärligt pris
+          estimated_credits: credits,
+          estimated_price_sek: priceSek,
         },
       };
     },

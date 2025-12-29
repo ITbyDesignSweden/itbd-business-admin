@@ -101,6 +101,11 @@ export async function POST(req: NextRequest) {
 - Använd verktygen för att komma ihåg kundens önskemål
 - Målet är att komma fram till ETT pilotprojekt att starta med
 
+**VIKTIGT OM VERKTYG:**
+- När du använder ett verktyg (manage_feature_idea eller generate_pilot_proposal), skriv ditt svar till kunden I SAMMA STEG som verktygsanropet.
+- Efter att verktyget har körts och du ser resultatet i nästa steg, ge endast en KORT bekräftelse om det behövs (t.ex. "Fixat!").
+- UPPREPA ALDRIG hela ditt tidigare svar eller långa förklaringar efter att ett verktyg har körts. Användaren ser redan det du skrev i steget innan.
+
 **PRISSÄTTNING:**
 - Small projekt (1-5 dagar): 1-10 krediter (~5,000-50,000 SEK)
 - Medium projekt (1-2 veckor): 10-30 krediter (~50,000-150,000 SEK)
@@ -109,6 +114,11 @@ export async function POST(req: NextRequest) {
 **VERKTYG DU HAR:**
 1. **manage_feature_idea**: Skapa, uppdatera eller spara idéer som kunden nämner
 2. **generate_pilot_proposal**: När ni är överens, skapa ett formellt förslag
+
+**VERKTYGSHANTERING:**
+- När du anropar ett verktyg, skriv ditt svar I SAMMA STEG som verktygsanropet.
+- Efter att ett verktyg har körts och du får resultatet, ge endast en KORT bekräftelse om det behövs. 
+- UPPREPA INTE hela ditt tidigare svar eller långa förklaringar som du nyss gav innan verktyget kördes.
 
 **STRATEGI:**
 1. Ställ 2-3 öppna frågor om deras verksamhet och utmaningar

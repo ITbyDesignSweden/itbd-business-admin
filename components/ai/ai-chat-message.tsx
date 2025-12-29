@@ -105,7 +105,7 @@ export function AIChatMessage({
 
                   console.log('toolName', toolName);
                   console.log('state', state);
-                  if (state === 'call') {
+                  if (state === 'call' || state === 'input-streaming' || state === 'input-available') {
                     const loadingMessages: Record<string, string> = {
                       'submit_feature_request': 'Skapar teknisk specifikation...',
                       'manage_feature_idea': 'Hanterar idélista...',
@@ -120,8 +120,18 @@ export function AIChatMessage({
                     );
                   }
 
-                  if (state === 'result') {
-                    const { result } = toolInvocation;
+                  if (state === 'output-error') {
+                    return (
+                      <div key={toolCallId} className="p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px] text-red-700 dark:text-red-400">
+                        ❌ {toolInvocation.errorText || 'Ett oväntat fel uppstod'}
+                      </div>
+                    );
+                  }
+
+                  if (state === 'result' || state === 'output-available') {
+                    const result = toolInvocation.output || toolInvocation.result;
+                    
+                    if (!result) return null;
                     
                     // Handle submit_feature_request (existing)
                     if (toolName === 'submit_feature_request') {

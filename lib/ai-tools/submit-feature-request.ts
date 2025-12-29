@@ -47,7 +47,7 @@ export function submitFeatureRequestTool(projectId: string, orgId: string) {
         console.log('OrgId:', orgId);
         console.log('Summary:', feature_summary);
         console.log('Credits:', estimated_credits);
-        console.log('Context length:', customer_context.length);
+        console.log('Context length:', customer_context?.length || 0);
         
         // Generera teknisk spec internt (dolt för kunden)
         const result = await generateInternalSpec({
