@@ -1,100 +1,88 @@
 # active_sprint.md
 
-## 🏗️ Sprint 9: The SDR Experience
+## 🧱 Sprint 9.5: The Persistence Layer
 
-**Mål:** Skapa "Säljrummet" (The Onboarding Room) – en dedikerad, exklusiv landningssida där kunden landar efter en intresseanmälan. Fokus är på UX och AI-driven personalisering för att minimera tröskeln till start.
+**Mål:** Flytta genereringen av "Prompt Starters" från frontend (on-demand vid sidladdning) till backend (asynkron enrichment). Detta eliminerar laddtiderna på onbaording-sidan och skapar grunden för en "Idébank" (Backlog).
 
-**Strategi:** "Experience First". Vi använder en öppen route (`/onboarding/[orgId]`) utan inloggning för att snabbt iterera på säljupplevelsen.
-
-**Status:** ✅ Completed
-**Startdatum:** 2025-12-28
-**Slutdatum:** 2025-12-28
+**Status:** ✅ Completed (2025-01-29)
+**Prio:** High (Performance & Architecture)
 
 ---
 
 ### 📋 Tickets & Specs
 
-#### 9.1 🏠 The Onboarding Room (Page Shell)
-**Syfte:** Skapa ramen för säljupplevelsen som hämtar kundens kontext.
-* **Fil:** `app/onboarding/[orgId]/page.tsx`
-* **Data Action:** `actions/onboarding.ts` (Hämta `Organization` + parsa `business_profile` JSON).
-* **UI Layout:**
-    * **Header:** Minimalistisk. Endast ITBD-logo + Kundens företagsnamn.
-    * **Hero Section:** Personlig hälsning ("Välkommen [Företag]..."). Använd `enrichment_data.industry` för att sätta kontext.
-    * **Main Grid:** Två kolumner på desktop.
-        * *Vänster:* Statisk info + Prompt Starters (Feature 9.2).
-        * *Höger:* Full-height Chat Interface (Feature 9.3).
-* **Tech:** Server Components. Hantera 404 om `orgId` ej finns.
+#### 9.5.1 🗄️ Database Schema (Feature Ideas)
+**Syfte:** Skapa tabellen för att lagra produktidéer och features.
+* **Fil:** `supabase/migrations/[timestamp]_feature_ideas.sql`
+* **SQL Definition:**
+    ```sql
+    -- Enums för status och källa
+    create type feature_status as enum ('suggested', 'saved', 'planned', 'implemented', 'rejected');
+    create type feature_source as enum ('ai_initial', 'chat_agent', 'manual');
 
-#### 9.2 💡 Dynamic Prompt Starters (The Hook)
-**Syfte:** Generera 3 unika, branschanpassade förslag på vad kunden kan bygga, för att undvika "Blank Page Syndrome".
-* **Fil:** `actions/ai-sdr.ts` (Ny server action).
-* **Logik (Server Side):**
-    * Använd **Vercel AI SDK** (`generateObject`).
-    * **Model:** Google Gemini 2.0 Flash.
-    * **Input:** Kundens `business_profile` (från DB).
-    * **Prompt:** "Du är en expert säljare. Baserat på denna kundprofil, föreslå 3 konkreta pilot-projekt de kan bygga på 1 dag."
-    * **Output Schema (`zod`):**
+    -- Huvudtabell
+    create table feature_ideas (
+      id uuid default gen_random_uuid() primary key,
+      created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+      org_id uuid references organizations(id) on delete cascade not null,
+      title text not null,
+      description text not null,
+      prompt text not null, -- Det som skickas till agenten
+      status feature_status default 'suggested' not null,
+      source feature_source default 'ai_initial' not null,
+      complexity text check (complexity in ('small', 'medium', 'large'))
+    );
+
+    -- Prestanda-index
+    create index idx_feature_ideas_org_status on feature_ideas(org_id, status);
+
+    -- RLS (Säkerhet)
+    alter table feature_ideas enable row level security;
+
+    -- Policy: Tillåt authenticated users (admins) att göra allt
+    -- Detta är ett internt admin-system, så alla inloggade användare har full access
+    create policy "Authenticated users can manage feature ideas"
+      on feature_ideas for all
+      using (auth.uid() is not null);
+    ```
+
+#### 9.5.2 🧠 Backend Logic (The Pre-Generator)
+**Syfte:** Integrera genereringen i godkännande-flödet så att datan finns *innan* kunden besöker sidan.
+* **Fil:** `actions/generate-feature-ideas.ts` (NY FIL)
+* **Integration:** `actions/pilot-requests.ts` (i `updatePilotRequestStatus`, efter rad 296)
+* **Logik:**
+    1.  När en pilot request godkänns och organization skapas
+    2.  Trigga `generateFeatureIdeas(orgId, enrichmentData)` asynkront
+    3.  Funktionen hämtar organization och parsar `business_profile` (JSON string)
+    4.  Anropar Gemini 2.0 Flash för att generera 3 feature ideas
+    5.  Sparar resultaten i `feature_ideas` med `org_id`, status `suggested`, source `ai_initial`, complexity `null`
+* **Action:** Körs asynkront ("fire and forget") så vi inte blockerar approval-flödet.
+
+#### 9.5.3 ⚡ Frontend Logic (The Instant Load)
+**Syfte:** Uppdatera onboarding-sidan att hämta statisk data istället för att generera.
+* **Filer:** 
+  - `app/onboarding/[orgId]/page.tsx` (Server Component)
+  - `components/onboarding/onboarding-client.tsx` (Client Component)
+  - `components/onboarding/prompt-starters.tsx` (Client Component)
+* **Ändringar:**
+    1.  **page.tsx:** Hämta feature ideas från DB med Server Component:
         ```typescript
-        z.object({
-          suggestions: z.array(z.object({
-            title: z.string(), // T.ex. "Fordonskoll"
-            description: z.string(), // Säljande pitch (1 mening)
-            prompt: z.string() // Texten som skickas till chatten vid klick
-          }))
-        })
+        const { data: featureIdeas } = await supabase
+          .from('feature_ideas')
+          .select('*')
+          .eq('org_id', orgId)
+          .eq('status', 'suggested')
+          .order('created_at', { ascending: true })
+          .limit(3);
         ```
-* **UI Component:** `components/onboarding/prompt-starters.tsx`.
-    * Använd `useSWR` eller `useEffect` för att hämta förslagen klient-sides (streaming) så sidan laddar snabbt.
-    * Visa skeletons under laddning.
-    * Vid klick: Skicka texten till Chat-komponenten (via prop eller context).
-
-#### 9.3 💬 The SDR Chat Interface (UI Only)
-**Syfte:** Gränssnittet där förhandlingen sker.
-* **Fil:** `components/onboarding/sdr-chat.tsx`
-* **Tech:** `useChat` från `ai/react`.
-* **UI Specs:**
-    * Ska fylla hela höjdutrymmet (flex-1).
-    * Bubblor: Tydlig distinktion mellan "SDR Agent" och "Kund".
-    * Input: Clean design, stöd för enter-to-send.
-    * **Empty State:** Om inga meddelanden finns, visa en välkomnande text (eller låt 9.2 fylla utrymmet).
-* **Backend Connect:** Koppla mot en enkel `api/chat`-route (vi implementerar den tunga "Brain"-logiken i Sprint 10, nu ska bara rören fungera).
+    2.  Skicka `featureIdeas` som props till `OnboardingClient` och vidare till `PromptStarters`
+    3.  **prompt-starters.tsx:** Ta bort `useEffect` och loading states
+    4.  *Fallback:* Om inga ideas finns, visa meddelande som hänvisar till chatten (ingen blocking error)
 
 ---
 
 ### 📝 Definition of Done
-1. ✅ Jag kan gå till `/onboarding/[giltigt-org-id]`.
-2. ✅ Jag ser kundens namn i headern.
-3. ✅ Inom 2 sekunder dyker 3 skräddarsydda förslag upp (genererade av AI).
-4. ✅ Jag kan klicka på ett förslag -> Texten dyker upp i chatten -> Chatten svarar (även om svaret är enkelt just nu).
-
----
-
-## 📦 Implementerade Filer
-
-### Components
-- `components/onboarding/onboarding-header.tsx` - Header med logo + företagsnamn
-- `components/onboarding/onboarding-hero.tsx` - Personlig välkomsthälsning
-- `components/onboarding/onboarding-client.tsx` - Client wrapper för state
-- `components/onboarding/prompt-starters.tsx` - AI-genererade förslag
-- `components/onboarding/sdr-chat.tsx` - Chat interface med Vercel AI SDK
-- `components/onboarding/starter-cards.tsx` - Deprecated (ersatt av prompt-starters)
-- `components/onboarding/chat-interface.tsx` - Deprecated (ersatt av sdr-chat)
-
-### Pages & API
-- `app/onboarding/[orgId]/page.tsx` - Server Component för onboarding
-- `app/onboarding/[orgId]/not-found.tsx` - 404-sida
-- `app/api/onboarding-chat/route.ts` - Chat API endpoint
-
-### Actions & Services
-- `actions/onboarding.ts` - Hämta organisation för onboarding
-- `actions/ai-sdr.ts` - Generera prompt starters med AI
-- `lib/ai/prompt-service.ts` - Uppdaterad med SDR prompt types
-
-### Database
-- `supabase/seed_sdr_prompts.sql` - Seed för SDR-prompter
-
-### Documentation
-- `docs/sprint_9_implementation.md` - Detaljerad implementation guide
-
-Se `docs/sprint_9_implementation.md` för fullständig dokumentation.
+1.  Tabellen `feature_ideas` finns i databasen.
+2.  När en ny Pilot Request godkänns (eller analyseras), dyker 3 rader upp i tabellen automatiskt.
+3.  Onboarding-sidan laddar blixtsnabbt (<500ms TTFB) och visar dessa 3 rader.
+4.  Inga ladd-snurror ("Skeleton loaders") för just korten behövs längre vid sidvisning.

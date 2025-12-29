@@ -3,6 +3,8 @@ export type ProjectStatus = "backlog" | "in_progress" | "completed" | "cancelled
 export type SubscriptionStatus = "active" | "paused" | "cancelled" | "inactive"
 export type PilotRequestStatus = "pending" | "approved" | "rejected"
 export type EnrichmentMode = "manual" | "assist" | "autopilot"
+export type FeatureStatus = "suggested" | "saved" | "planned" | "implemented" | "rejected"
+export type FeatureSource = "ai_initial" | "chat_agent" | "manual"
 
 export interface SubscriptionPlan {
   id: string
@@ -150,4 +152,16 @@ export interface SystemSettings {
   max_daily_leads: number
   created_at: string
   updated_at: string
+}
+
+export interface FeatureIdea {
+  id: string
+  created_at: string
+  org_id: string
+  title: string
+  description: string
+  prompt: string
+  status: FeatureStatus
+  source: FeatureSource
+  complexity: "small" | "medium" | "large" | null
 }

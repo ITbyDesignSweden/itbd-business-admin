@@ -294,6 +294,40 @@ export async function updatePilotRequestStatus(
       }
 
       organizationId = newOrg.id
+
+      // Sprint 9.5: Enrich organization profile and generate feature ideas
+      // Fire and forget - don't block the approval flow
+      // Run enrichment FIRST, then use that data for feature ideas
+      Promise.all([
+        import('./enrich-organization'),
+        import('./generate-feature-ideas')
+      ]).then(async ([enrichModule, featureModule]) => {
+        try {
+          // Step 1: Enrich organization profile with Google Search
+          console.log(`🔍 Enriching organization profile for: ${newOrg.name}`)
+          const enrichResult = await enrichModule.enrichOrganizationProfile(newOrg.id)
+          
+          if (enrichResult.success) {
+            console.log(`✅ Organization enriched: ${newOrg.name}`)
+            
+            // Step 2: Generate feature ideas using BOTH enrichment data sources
+            console.log(`🎯 Generating feature ideas for: ${newOrg.name}`)
+            await featureModule.generateFeatureIdeas(
+              newOrg.id, 
+              pilotRequest.enrichment_data as any,
+              enrichResult.businessProfile // Pass the enriched profile
+            )
+          } else {
+            console.error('Enrichment failed, generating features with basic data:', enrichResult.error)
+            // Fallback: Generate features without enriched profile
+            await featureModule.generateFeatureIdeas(newOrg.id, pilotRequest.enrichment_data as any)
+          }
+        } catch (err) {
+          console.error('Failed to enrich/generate features:', err)
+        }
+      }).catch(err => {
+        console.error('Failed to load enrichment modules:', err)
+      })
     }
 
     // Update pilot request status

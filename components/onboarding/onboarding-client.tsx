@@ -5,12 +5,14 @@ import { PromptStarters } from "./prompt-starters"
 import { SDRChat } from "./sdr-chat"
 import { useChat } from "@ai-sdk/react"
 import { toast } from "sonner"
+import type { FeatureIdea } from "@/lib/types/database"
 
 interface OnboardingClientProps {
   orgId: string
+  featureIdeas: FeatureIdea[]
 }
 
-export function OnboardingClient({ orgId }: OnboardingClientProps) {
+export function OnboardingClient({ orgId, featureIdeas }: OnboardingClientProps) {
   const chat = useChat({
     transport: new DefaultChatTransport({
         api: '/api/onboarding-chat',
@@ -50,7 +52,11 @@ export function OnboardingClient({ orgId }: OnboardingClientProps) {
 
   return (
     <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <PromptStarters orgId={orgId} onPromptClick={handlePromptClick} />
+      <PromptStarters 
+        orgId={orgId} 
+        featureIdeas={featureIdeas}
+        onPromptClick={handlePromptClick} 
+      />
       <SDRChat chat={chat} orgId={orgId} />
     </div>
   )
