@@ -106,8 +106,27 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Get Data and Prompt
-    const { data: org } = await supabaseAdmin.from('organizations_with_credits').select('*').eq('id', project.org_id).single();
+    const [{ data: org }, { data: ideas }] = await Promise.all([
+      supabaseAdmin.from('organizations_with_credits').select('*').eq('id', project.org_id).single(),
+      supabaseAdmin
+        .from('feature_ideas')
+        .select('id, title, description, status')
+        .eq('org_id', project.org_id)
+        .in('status', ['suggested', 'saved'])
+        .order('created_at', { ascending: false })
+    ]);
+
     if (!org) return new Response(JSON.stringify({ error: 'Organisation hittades ej' }), { status: 404, headers: corsHeaders });
+
+    // Build context for previously discussed ideas
+    const ideasContext = ideas && ideas.length > 0
+      ? `### TIDIGARE DISKUTERADE IDÉER & FUNKTIONALITET
+Här är en lista på idéer som redan har diskuterats eller sparats för denna organisation. Använd dessa som kontext för att undvika dubletter och för att bygga vidare på tidigare tankar.
+
+${ideas.map((idea) => `- **${idea.title}**
+  *Status:* ${idea.status}
+  *Beskrivning:* ${idea.description}`).join('\n\n')}`
+      : '### TIDIGARE DISKUTERADE IDÉER\nInga tidigare idéer finns registrerade än.';
 
     // Step 4.5: Fetch prompts in batch
     const promptTypes = [
@@ -127,7 +146,8 @@ Din uppgift är att hjälpa kunder (ofta icke-tekniska chefer) att effektivisera
         business_profile: org.business_profile || "Okänd verksamhet",
         credits: org.total_credits ?? 0,
         schema: schema ? `### NUVARANDE DATABASSTRUKTUR\n${schema}` : '',
-        custom_instructions: org.custom_ai_instructions ? `### KUNDSPECIFIKA INSTRUKTIONER\n${org.custom_ai_instructions}` : ''
+        custom_instructions: org.custom_ai_instructions ? `### KUNDSPECIFIKA INSTRUKTIONER\n${org.custom_ai_instructions}` : '',
+        ideas_context: ideasContext
       }
     );
 

@@ -89,9 +89,15 @@ export async function POST(req: NextRequest) {
     console.log('Fetched feature ideas:', ideas.length);
 
     // Step 3: Build contextual system prompt with feature ideas
-    const ideasContext = ideas.length > 0
-      ? `\n\n### AKTUELLA IDÉER (Från tidigare konversation)\n${ideas.map((idea, i) => `${i + 1}. **${idea.title}** (${idea.status})\n   ${idea.description}\n   ID: ${idea.id}`).join('\n')}`
-      : '\n\n### AKTUELLA IDÉER\nIngen idélista genererad än.';
+    // Build context for previously discussed ideas
+    const ideasContext = ideas && ideas.length > 0
+      ? `### TIDIGARE DISKUTERADE IDÉER & FUNKTIONALITET
+Här är en lista på idéer som redan har diskuterats eller sparats för denna organisation. Använd dessa som kontext för att undvika dubletter och för att bygga vidare på tidigare tankar.
+
+${ideas.map((idea) => `- **${idea.title}**
+  *Status:* ${idea.status}
+  *Beskrivning:* ${idea.description}`).join('\n\n')}`
+      : '### TIDIGARE DISKUTERADE IDÉER\nInga tidigare idéer finns registrerade än.';
 
     // Step 3: Fetch all prompts in batch
     const promptTypes = [

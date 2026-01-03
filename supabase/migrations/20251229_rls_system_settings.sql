@@ -40,4 +40,3 @@ CREATE POLICY "Admins can delete system settings"
 
 -- 6. Add comment explaining the security model
 COMMENT ON TABLE public.system_settings IS 'Global system configuration. Publicly readable, admin-only updates.';
-
