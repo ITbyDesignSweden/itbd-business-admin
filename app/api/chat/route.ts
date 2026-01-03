@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
 import { validateApiKey } from '@/lib/api-auth';
-import { getActivePrompt as getPromptFromService, PROMPT_TYPES } from '@/lib/ai/prompt-service';
+import { getActivePrompt as getPromptFromService, getActivePrompts, formatPrompt, PROMPT_TYPES } from '@/lib/ai/prompt-service';
 import { createClient } from '@/lib/supabase/server';
 import { processAiChatStream, CustomUIMessage } from '@/lib/ai/chat-core';
 import { submitFeatureRequestTool } from '@/lib/ai-tools/submit-feature-request';
@@ -31,32 +31,6 @@ function isRateLimited(identifier: string): boolean {
 
   record.count++;
   return false;
-}
-
-/**
- * Build contextual system prompt for Architect
- */
-async function buildArchitectPrompt(
-  supabase: any,
-  orgName: string,
-  businessProfile: string | null,
-  credits: number | null,
-  customInstructions: string | null,
-  schema?: string
-): Promise<string> {
-  const systemPrompt = await getPromptFromService(
-    PROMPT_TYPES.CUSTOMER_CHAT, 
-    {
-      org_name: orgName,
-      business_profile: businessProfile || "Okänd verksamhet",
-      credits: credits ?? 0,
-      schema: schema ? `### NUVARANDE DATABASSTRUKTUR\n${schema}` : '',
-      custom_instructions: customInstructions ? `### KUNDSPECIFIKA INSTRUKTIONER\n${customInstructions}` : ''
-    }, 
-    `Du är ITBD Intelligent Architect...`
-  );
-  
-  return systemPrompt;
 }
 
 const corsHeaders = {
@@ -97,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     const supabaseAdmin = createSupabaseClient(supabaseUrl, supabaseServiceKey);
     const supabaseUser = await createClient();
-    
+
     // 1. Authenticate
     const { data: { session } } = await supabaseUser.auth.getSession();
     const authHeader = req.headers.get("authorization");
@@ -135,15 +109,35 @@ export async function POST(req: NextRequest) {
     const { data: org } = await supabaseAdmin.from('organizations_with_credits').select('*').eq('id', project.org_id).single();
     if (!org) return new Response(JSON.stringify({ error: 'Organisation hittades ej' }), { status: 404, headers: corsHeaders });
 
-    const systemPrompt = await buildArchitectPrompt(supabaseAdmin, org.name, org.business_profile, org.total_credits, org.custom_ai_instructions, schema);
+    // Step 4.5: Fetch prompts in batch
+    const promptTypes = [
+      PROMPT_TYPES.CUSTOMER_CHAT,
+      PROMPT_TYPES.TOOL_SUBMIT_FEATURE_REQUEST
+    ];
+    const dbPrompts = await getActivePrompts(promptTypes);
+
+    const defaultSystemPrompt = `Du är ITBD Intelligent Architect.
+ROLL: Senior Verksamhetsutvecklare & Affärsstrateg för IT by Design.
+Din uppgift är att hjälpa kunder (ofta icke-tekniska chefer) att effektivisera sin verksamhet.`;
+
+    const systemPrompt = formatPrompt(
+      dbPrompts[PROMPT_TYPES.CUSTOMER_CHAT] || defaultSystemPrompt,
+      {
+        org_name: org.name,
+        business_profile: org.business_profile || "Okänd verksamhet",
+        credits: org.total_credits ?? 0,
+        schema: schema ? `### NUVARANDE DATABASSTRUKTUR\n${schema}` : '',
+        custom_instructions: org.custom_ai_instructions ? `### KUNDSPECIFIKA INSTRUKTIONER\n${org.custom_ai_instructions}` : ''
+      }
+    );
 
     // 5. Delegate to Core
     return processAiChatStream({
-      messages, 
+      messages,
       systemPrompt,
       connectionNotificationText: 'Ansluter till ITBD Intelligent Architect...',
       tools: {
-        submit_feature_request: submitFeatureRequestTool(projectId, orgId),
+        submit_feature_request: submitFeatureRequestTool(projectId, orgId, dbPrompts[PROMPT_TYPES.TOOL_SUBMIT_FEATURE_REQUEST]),
       },
       attachments,
       corsHeaders

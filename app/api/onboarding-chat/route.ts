@@ -1,6 +1,6 @@
 /**
  * Sprint 8.5: Secure Onboarding Chat API
- * 
+ *
  * Security Change: This endpoint now validates invitation tokens instead of
  * trusting orgId from client. The server derives the orgId from the token,
  * preventing client-side manipulation.
@@ -9,7 +9,7 @@
 import { NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { validateInvitationToken, TokenValidationError } from '@/lib/auth/token-gate';
-import { getActivePrompt as getPromptFromService, PROMPT_TYPES } from '@/lib/ai/prompt-service';
+import { getActivePrompt as getPromptFromService, getActivePrompts, formatPrompt, PROMPT_TYPES } from '@/lib/ai/prompt-service';
 import { processAiChatStream } from '@/lib/ai/chat-core';
 import { manageFeatureIdeaTool } from '@/lib/ai-tools/manage-feature-idea';
 import { generatePilotProposalTool } from '@/lib/ai-tools/generate-pilot-proposal';
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     } catch (error) {
       if (error instanceof TokenValidationError) {
         return new Response(
-          JSON.stringify({ error: error.message }), 
+          JSON.stringify({ error: error.message }),
           { status: 401, headers: corsHeaders }
         );
       }
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Fetch organization data and feature ideas as Admin (since user is anonymous)
     const supabaseAdmin = createAdminClient();
-    
+
     const [orgResult, ideasResult] = await Promise.all([
       supabaseAdmin
         .from('organizations_with_credits')
@@ -75,24 +75,33 @@ export async function POST(req: NextRequest) {
         .in('status', ['suggested', 'saved']) // Hämta endast aktiva idéer
         .order('created_at', { ascending: false })
     ]);
-    
+
     const org = orgResult.data;
     const ideas = ideasResult.data || [];
-    
+
     if (!org) {
       return new Response(
-        JSON.stringify({ error: 'Organisation hittades ej' }), 
+        JSON.stringify({ error: 'Organisation hittades ej' }),
         { status: 404, headers: corsHeaders }
       );
     }
-    
+
     console.log('Fetched feature ideas:', ideas.length);
 
     // Step 3: Build contextual system prompt with feature ideas
     const ideasContext = ideas.length > 0
       ? `\n\n### AKTUELLA IDÉER (Från tidigare konversation)\n${ideas.map((idea, i) => `${i + 1}. **${idea.title}** (${idea.status})\n   ${idea.description}\n   ID: ${idea.id}`).join('\n')}`
       : '\n\n### AKTUELLA IDÉER\nIngen idélista genererad än.';
-    
+
+    // Step 3: Fetch all prompts in batch
+    const promptTypes = [
+      PROMPT_TYPES.SDR_CHAT_SYSTEM,
+      PROMPT_TYPES.TOOL_MANAGE_FEATURE_IDEA,
+      PROMPT_TYPES.TOOL_GENERATE_PILOT_PROPOSAL
+    ];
+
+    const dbPrompts = await getActivePrompts(promptTypes);
+
     const defaultSystemPrompt = `Du är en konsultativ säljare (SDR) för IT By Design som hjälper små och medelstora företag att digitalisera sin verksamhet.
 
 **KONTEXT:**
@@ -123,17 +132,14 @@ export async function POST(req: NextRequest) {
 3. Om kunden nämner flera idéer, använd manage_feature_idea för att spara dem
 4. När ni hittat rätt projekt, använd generate_pilot_proposal
 5. Förslaget ska vara KONKRET med features och pris`;
-    
-    const systemPrompt = await getPromptFromService(
-      PROMPT_TYPES.SDR_CHAT_SYSTEM,
-      { 
-        organization_name: org.name, 
+
+    const systemPrompt = formatPrompt(
+      dbPrompts[PROMPT_TYPES.SDR_CHAT_SYSTEM] || defaultSystemPrompt,
+      {
+        organization_name: org.name,
         business_profile: org.business_profile || "Okänd verksamhet",
         ideas_context: ideasContext
-      },
-      defaultSystemPrompt.replace('{{organization_name}}', org.name)
-                         .replace('{{business_profile}}', org.business_profile || "Okänd verksamhet")
-                         .replace('{{ideas_context}}', ideasContext)
+      }
     );
 
     // Step 4: Process chat stream with tools
@@ -141,8 +147,8 @@ export async function POST(req: NextRequest) {
       messages,
       systemPrompt,
       tools: {
-        manage_feature_idea: manageFeatureIdeaTool(orgId),
-        generate_pilot_proposal: generatePilotProposalTool(),
+        manage_feature_idea: manageFeatureIdeaTool(orgId, dbPrompts[PROMPT_TYPES.TOOL_MANAGE_FEATURE_IDEA]),
+        generate_pilot_proposal: generatePilotProposalTool(dbPrompts[PROMPT_TYPES.TOOL_GENERATE_PILOT_PROPOSAL]),
       },
       connectionNotificationText: `Ansluter till ITBD SDR...`,
       attachments,
@@ -152,9 +158,8 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Onboarding Chat API Error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internt fel' }), 
+      JSON.stringify({ error: 'Internt fel' }),
       { status: 500, headers: corsHeaders }
     );
   }
 }
-

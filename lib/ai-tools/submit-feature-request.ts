@@ -7,27 +7,29 @@ import { generateInternalSpec } from '@/actions/generate-internal-spec';
  * Triggers when customer approves a feature suggestion
  * Generates internal technical spec using Gemini 3.0 Flash
  */
-export function submitFeatureRequestTool(projectId: string, orgId: string) {
-  return tool({
-    description: `Använd detta verktyg när kunden godkänner/beställer en funktion. 
+export function submitFeatureRequestTool(projectId: string, orgId: string, description?: string) {
+  const defaultDescription = `Använd detta verktyg när kunden godkänner/beställer en funktion.
     Trigger-ord: "Kör på det", "Beställ", "Ja tack", "Skapa det", "Gör så".
     Detta kommer att generera en teknisk specifikation internt för utvecklarna.
-    
+
     KRITISKT: Du MÅSTE fylla i ALLA tre parametrarna baserat på konversationen hittills.
     - feature_summary: Sammanfatta vad kunden vill ha
     - estimated_credits: Det pris du nämnde tidigare i konversationen (1, 10 eller 30)
-    - customer_context: Kopiera relevant kontext från hela konversationen`,
-    
+    - customer_context: Kopiera relevant kontext från hela konversationen`;
+
+  return tool({
+    description: description || defaultDescription,
+
     parameters: z.object({
       feature_summary: z.string().min(10).describe('Kort sammanfattning av funktionen kunden vill ha. Exempel: "Ett digitalt kundregister för att samla kontaktuppgifter och översikt"'),
       estimated_credits: z.number().int().min(1).describe('Uppskattad kostnad i krediter - MÅSTE vara exakt det tal du nämnde tidigare (1, 10, eller 30)'),
       customer_context: z.string().min(20).describe('Alla relevanta detaljer från konversationen som utvecklaren behöver veta. Inkludera kundens behov och önskemål.'),
     }),
-    
+
     // @ts-ignore - AI SDK execute function
     execute: async (args: any) => {
       const { feature_summary, estimated_credits, customer_context } = args;
-      
+
       // Validera att parametrar finns
       if (!feature_summary || !estimated_credits || !customer_context) {
         console.error('=== MISSING PARAMETERS ===');
@@ -40,7 +42,7 @@ export function submitFeatureRequestTool(projectId: string, orgId: string) {
           error: 'Missing required parameters from AI tool',
         };
       }
-      
+
       try {
         console.log('=== Submit Feature Request Tool Triggered ===');
         console.log('Project:', projectId);
@@ -48,7 +50,7 @@ export function submitFeatureRequestTool(projectId: string, orgId: string) {
         console.log('Summary:', feature_summary);
         console.log('Credits:', estimated_credits);
         console.log('Context length:', customer_context?.length || 0);
-        
+
         // Generera teknisk spec internt (dolt för kunden)
         const result = await generateInternalSpec({
           projectId,
@@ -72,7 +74,7 @@ export function submitFeatureRequestTool(projectId: string, orgId: string) {
           success: true,
           document_id: result.documentId,
         };
-        
+
       } catch (error) {
         console.error('Error in submit_feature_request tool:', error);
         return {
@@ -83,4 +85,3 @@ export function submitFeatureRequestTool(projectId: string, orgId: string) {
     },
   });
 }
-

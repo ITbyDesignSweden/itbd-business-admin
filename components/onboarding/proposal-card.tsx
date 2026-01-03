@@ -30,15 +30,15 @@ const complexityLabels = {
 export function ProposalCard({ proposal, token }: ProposalCardProps) {
   const [isAccepting, setIsAccepting] = useState(false)
   const [isAccepted, setIsAccepted] = useState(false)
-  
+
   const complexityInfo = complexityLabels[proposal.complexity]
-  
+
   const handleAccept = async () => {
     setIsAccepting(true)
-    
+
     try {
       const result = await acceptProposal(token, proposal)
-      
+
       if (result.success) {
         setIsAccepted(true)
         toast.success("Pilotprojekt startat!", {
@@ -58,10 +58,10 @@ export function ProposalCard({ proposal, token }: ProposalCardProps) {
       setIsAccepting(false)
     }
   }
-  
+
   return (
-    <Card className="border-2 border-primary/20 shadow-lg overflow-hidden">
-      <CardHeader className="bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 pb-4">
+    <Card className="border-2 border-primary/20 shadow-lg overflow-hidden py-0">
+      <CardHeader className="bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 pb-2 py-4">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -70,26 +70,18 @@ export function ProposalCard({ proposal, token }: ProposalCardProps) {
             <h3 className="text-lg font-bold text-foreground leading-tight">
               {proposal.title}
             </h3>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className={complexityInfo.color}>
-                {complexityInfo.label}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                • {complexityInfo.time}
-              </span>
-            </div>
           </div>
         </div>
       </CardHeader>
-      
-      <CardContent className="pt-4 space-y-4">
+
+      <CardContent className="pt-2 space-y-4">
         <div>
           <h4 className="text-sm font-semibold mb-2 text-foreground">Sammanfattning</h4>
           <p className="text-sm text-muted-foreground leading-relaxed">
             {proposal.summary}
           </p>
         </div>
-        
+
         <div>
           <h4 className="text-sm font-semibold mb-2 text-foreground">Ingår i projektet</h4>
           <ul className="space-y-1.5">
@@ -101,29 +93,13 @@ export function ProposalCard({ proposal, token }: ProposalCardProps) {
             ))}
           </ul>
         </div>
-        
-        <div className="pt-3 border-t">
-          <div className="flex items-baseline justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Uppskattad kostnad</p>
-              <p className="text-2xl font-bold text-foreground">
-                {proposal.estimated_credits} krediter
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">
-                ≈ {(proposal.estimated_price_sek / 1000).toFixed(0)}k SEK
-              </p>
-            </div>
-          </div>
-        </div>
       </CardContent>
-      
+
       <CardFooter className="bg-muted/30 flex-col gap-3 pt-4">
         {!isAccepted ? (
           <>
-            <Button 
-              onClick={handleAccept} 
+            <Button
+              onClick={handleAccept}
               disabled={isAccepting}
               size="lg"
               className="w-full font-semibold"
@@ -141,8 +117,7 @@ export function ProposalCard({ proposal, token }: ProposalCardProps) {
               )}
             </Button>
             <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-              När du startar projektet skickas en inloggningsinbjudan till din e-post. 
-              Du får tillgång till er egen utvecklarportal.
+              När pilotprojektet byggts färdigt kommer du att få en inloggningsinbjudan till din e-post.
             </p>
           </>
         ) : (
@@ -160,5 +135,3 @@ export function ProposalCard({ proposal, token }: ProposalCardProps) {
     </Card>
   )
 }
-
-

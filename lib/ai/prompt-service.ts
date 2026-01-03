@@ -15,13 +15,28 @@ export const PROMPT_TYPES = {
   SDR_STARTERS_SYSTEM: 'sdr-starters-system',
   SDR_STARTERS_USER: 'sdr-starters-user',
   SDR_CHAT_SYSTEM: 'sdr-chat-system',
+  TOOL_MANAGE_FEATURE_IDEA: 'tool-manage-feature-idea',
+  TOOL_SUBMIT_FEATURE_REQUEST: 'tool-submit-feature-request',
+  TOOL_GENERATE_PILOT_PROPOSAL: 'tool-generate-pilot-proposal',
 } as const;
 
 export type PromptType = typeof PROMPT_TYPES[keyof typeof PROMPT_TYPES];
 
 /**
+ * Ersätter {{variable}} i en sträng med värden från ett objekt.
+ */
+export function formatPrompt(content: string, variables: Record<string, any> = {}): string {
+  let formattedContent = content;
+  for (const [key, value] of Object.entries(variables)) {
+    const placeholder = new RegExp(`{{${key}}}`, 'g');
+    formattedContent = formattedContent.replace(placeholder, value !== null && value !== undefined ? String(value) : '');
+  }
+  return formattedContent;
+}
+
+/**
  * Hämtar den aktiva prompten för en specifik typ och ersätter variabler.
- * 
+ *
  * @param type - Typen av prompt (från PROMPT_TYPES)
  * @param variables - Objekt med variabler som ska ersättas i prompten (t.ex. { name: 'ITBD' })
  * @param fallback - En fallback-sträng om ingen aktiv prompt hittas i databasen
@@ -33,7 +48,7 @@ export async function getActivePrompt(
 ): Promise<string> {
   try {
     const supabase = createAdminClient();
-    
+
     const { data, error } = await supabase
       .from('ai_prompts')
       .select('content')
@@ -52,15 +67,7 @@ export async function getActivePrompt(
       throw new Error(`Ingen aktiv prompt hittades för typen: ${type}`);
     }
 
-    let content = data.content;
-
-    // Ersätt alla {{variable}} med deras värden
-    for (const [key, value] of Object.entries(variables)) {
-      const placeholder = new RegExp(`{{${key}}}`, 'g');
-      content = content.replace(placeholder, value !== null && value !== undefined ? String(value) : '');
-    }
-
-    return content;
+    return formatPrompt(data.content, variables);
   } catch (error) {
     console.error(`Failed to get active prompt (${type}):`, error);
     if (fallback) return fallback;
@@ -68,3 +75,35 @@ export async function getActivePrompt(
   }
 }
 
+/**
+ * Hämtar flera aktiva prompter i ett enda databasanrop.
+ *
+ * @param types - Array med prompt-typer
+ * @returns Objekt med prompt_type som nyckel och content som värde
+ */
+export async function getActivePrompts(
+  types: PromptType[]
+): Promise<Record<string, string>> {
+  try {
+    const supabase = createAdminClient();
+
+    const { data, error } = await supabase
+      .from('ai_prompts')
+      .select('prompt_type, content')
+      .in('prompt_type', types)
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching multiple prompts:', error);
+      return {};
+    }
+
+    return (data || []).reduce((acc, row) => {
+      acc[row.prompt_type] = row.content;
+      return acc;
+    }, {} as Record<string, string>);
+  } catch (error) {
+    console.error('Failed to get active prompts:', error);
+    return {};
+  }
+}

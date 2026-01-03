@@ -24,8 +24,8 @@ export interface ChatMessageProps {
   token?: string // For onboarding flow (needed for ProposalCard)
 }
 
-export function AIChatMessage({ 
-  message, 
+export function AIChatMessage({
+  message,
   assistantIcon = <Bot className="h-4 w-4" />,
   assistantName = "AI",
   token
@@ -44,7 +44,7 @@ export function AIChatMessage({
           {assistantIcon}
         </div>
       )}
-      
+
       <div className="flex flex-col gap-1 max-w-[85%] sm:max-w-[80%]">
         <div
           className={cn(
@@ -56,11 +56,13 @@ export function AIChatMessage({
         >
           <div className="space-y-3">
             {message.parts ? (
-              message.parts.map((part: any, index: number) => {
-                if (part.type === "text") {
-                  return (
-                    <div 
-                      key={index}
+              <>
+                {/* 1. Render all text parts first */}
+                {message.parts
+                  .filter((part: any) => part.type === "text")
+                  .map((part: any, index: number) => (
+                    <div
+                      key={`text-${index}`}
                       className={cn(
                         "leading-relaxed text-[13px]",
                         isAssistant ? "prose prose-sm dark:prose-invert max-w-none" : ""
@@ -69,7 +71,7 @@ export function AIChatMessage({
                       {message.role === "user" ? (
                         <div className="whitespace-pre-wrap break-words">{part.text}</div>
                       ) : (
-                        <ReactMarkdown 
+                        <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
                             p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -91,99 +93,100 @@ export function AIChatMessage({
                         </ReactMarkdown>
                       )}
                     </div>
-                  );
-                }
+                  ))}
 
-                const isToolCall = part.type === "tool-invocation" || part.type.startsWith("tool-");
+                {/* 2. Render all tool parts second */}
+                {message.parts
+                  .filter((part: any) => part.type !== "text")
+                  .map((part: any, index: number) => {
+                    const isToolCall = part.type === "tool-invocation" || part.type.startsWith("tool-");
 
-                if (isToolCall) {
-                  // If type is "tool-invocation", the data is in part.toolInvocation
-                  // If type is "tool-name", the data is in the part itself
-                  const toolInvocation = part.type === "tool-invocation" ? part.toolInvocation : part;
-                  const { toolCallId, state } = toolInvocation;
-                  const toolName = toolInvocation.toolName || part.type.replace("tool-", "");
+                    if (isToolCall) {
+                      // If type is "tool-invocation", the data is in part.toolInvocation
+                      // If type is "tool-name", the data is in the part itself
+                      const toolInvocation = part.type === "tool-invocation" ? part.toolInvocation : part;
+                      const { toolCallId, state } = toolInvocation;
+                      const toolName = toolInvocation.toolName || part.type.replace("tool-", "");
 
-                  console.log('toolName', toolName);
-                  console.log('state', state);
-                  if (state === 'call' || state === 'input-streaming' || state === 'input-available') {
-                    const loadingMessages: Record<string, string> = {
-                      'submit_feature_request': 'Skapar teknisk specifikation...',
-                      'manage_feature_idea': 'Hanterar idélista...',
-                      'generate_pilot_proposal': 'Skapar förslag...',
-                    }
-                    
-                    return (
-                      <div key={toolCallId} className="flex items-center gap-2 text-xs text-muted-foreground italic">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        {loadingMessages[toolName] || `Kör ${toolName}...`}
-                      </div>
-                    );
-                  }
+                      if (state === 'call' || state === 'input-streaming' || state === 'input-available') {
+                        const loadingMessages: Record<string, string> = {
+                          'submit_feature_request': 'Skapar teknisk specifikation...',
+                          'manage_feature_idea': 'Hanterar idélista...',
+                          'generate_pilot_proposal': 'Skapar förslag...',
+                        }
 
-                  if (state === 'output-error') {
-                    return (
-                      <div key={toolCallId} className="p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px] text-red-700 dark:text-red-400">
-                        ❌ {toolInvocation.errorText || 'Ett oväntat fel uppstod'}
-                      </div>
-                    );
-                  }
-
-                  if (state === 'result' || state === 'output-available') {
-                    const result = toolInvocation.output || toolInvocation.result;
-                    
-                    if (!result) return null;
-                    
-                    // Handle submit_feature_request (existing)
-                    if (toolName === 'submit_feature_request') {
-                      if (result.success) {
                         return (
-                          <div key={toolCallId} className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400">
-                            ✅ Teknisk specifikation skapad (ID: {result.document_id?.slice(0, 8)}...)
+                          <div key={toolCallId} className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            {loadingMessages[toolName] || `Kör ${toolName}...`}
                           </div>
                         );
-                      } else {
+                      }
+
+                      if (state === 'output-error') {
                         return (
                           <div key={toolCallId} className="p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px] text-red-700 dark:text-red-400">
-                            ❌ {result.error || 'Fel vid registrering'}
+                            ❌ {toolInvocation.errorText || 'Ett oväntat fel uppstod'}
                           </div>
                         );
                       }
-                    }
-                    
-                    // Handle manage_feature_idea (Sprint 10.2)
-                    if (toolName === 'manage_feature_idea') {
-                      if (result.success) {
-                        console.log('manage_feature_idea result', result);
-                        return (
-                          <div key={toolCallId} className="flex items-center gap-1.5 p-2 rounded bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-700 dark:text-blue-400">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {result.message}
-                          </div>
-                        );
-                      }
-                    }
-                    
-                    // Handle generate_pilot_proposal (Sprint 10.3)
-                    if (toolName === 'generate_pilot_proposal') {
-                      if (result.success && result.proposal) {
-                        // Render the proposal card instead of text
-                        if (!token) {
-                          console.warn('Token missing - cannot render ProposalCard')
-                          return null
-                        }
-                        
-                        return (
-                          <div key={toolCallId} className="my-3">
-                            <ProposalCard proposal={result.proposal as ProposalData} token={token} />
-                          </div>
-                        );
-                      }
-                    }
-                  }
-                }
 
-                return null;
-              })
+                      if (state === 'result' || state === 'output-available') {
+                        const result = toolInvocation.output || toolInvocation.result;
+
+                        if (!result) return null;
+
+                        // Handle submit_feature_request (existing)
+                        if (toolName === 'submit_feature_request') {
+                          if (result.success) {
+                            return (
+                              <div key={toolCallId} className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400">
+                                ✅ Teknisk specifikation skapad (ID: {result.document_id?.slice(0, 8)}...)
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div key={toolCallId} className="p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px] text-red-700 dark:text-red-400">
+                                ❌ {result.error || 'Fel vid registrering'}
+                              </div>
+                            );
+                          }
+                        }
+
+                        // Handle manage_feature_idea (Sprint 10.2)
+                        if (toolName === 'manage_feature_idea') {
+                          if (result.success) {
+                            return (
+                              <div key={toolCallId} className="flex items-center gap-1.5 p-2 rounded bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-700 dark:text-blue-400">
+                                <CheckCircle2 className="h-3 w-3" />
+                                {result.message}
+                              </div>
+                            );
+                          }
+                        }
+
+                        // Handle generate_pilot_proposal (Sprint 10.3)
+                        if (toolName === 'generate_pilot_proposal') {
+                          if (result.success && result.proposal) {
+                            // Render the proposal card instead of text
+                            if (!token) {
+                              console.warn('Token missing - cannot render ProposalCard')
+                              return null
+                            }
+
+                            return (
+                              <div key={toolCallId} className="my-3">
+                                <ProposalCard proposal={result.proposal as ProposalData} token={token} />
+                              </div>
+                            );
+                          }
+                        }
+                      }
+                    }
+
+                    return null;
+                  })}
+              </>
             ) : (
               <div className={cn(
                 "leading-relaxed text-[13px]",
@@ -221,4 +224,3 @@ export function AIChatMessage({
     </div>
   )
 }
-
