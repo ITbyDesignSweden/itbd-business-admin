@@ -108,7 +108,11 @@ export function AIChatMessage({
                       const { toolCallId, state } = toolInvocation;
                       const toolName = toolInvocation.toolName || part.type.replace("tool-", "");
 
-                      if (state === 'call' || state === 'input-streaming' || state === 'input-available') {
+                      // Kontrollera om vi har ett faktiskt resultat att visa
+                      const result = toolInvocation.output || toolInvocation.result;
+
+                      // Om vi inte har ett resultat än, visa laddnings-spinnern för verktyget
+                      if (!result && state !== 'output-error') {
                         const loadingMessages: Record<string, string> = {
                           'submit_feature_request': 'Skapar teknisk specifikation...',
                           'manage_feature_idea': 'Hanterar idélista...',
@@ -116,7 +120,7 @@ export function AIChatMessage({
                         }
 
                         return (
-                          <div key={toolCallId} className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                          <div key={toolCallId} className="flex items-center gap-2 text-xs text-muted-foreground italic my-2">
                             <Loader2 className="h-3 w-3 animate-spin" />
                             {loadingMessages[toolName] || `Kör ${toolName}...`}
                           </div>
@@ -125,17 +129,14 @@ export function AIChatMessage({
 
                       if (state === 'output-error') {
                         return (
-                          <div key={toolCallId} className="p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px] text-red-700 dark:text-red-400">
+                          <div key={toolCallId} className="p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px] text-red-700 dark:text-red-400 my-2">
                             ❌ {toolInvocation.errorText || 'Ett oväntat fel uppstod'}
                           </div>
                         );
                       }
 
-                      if (state === 'result' || state === 'output-available') {
-                        const result = toolInvocation.output || toolInvocation.result;
-
-                        if (!result) return null;
-
+                      // Om vi har ett resultat, rendera det
+                      if (result) {
                         // Handle submit_feature_request (existing)
                         if (toolName === 'submit_feature_request') {
                           if (result.success) {

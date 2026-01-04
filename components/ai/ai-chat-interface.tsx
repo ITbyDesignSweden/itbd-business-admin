@@ -57,7 +57,7 @@ export function AIChatInterface({
 
   const handleSend = (text: string, attachments: Attachment[]) => {
     let messageText = text
-    
+
     // Om vi har bilagor, lägg till en notering i texten (valfritt, men bra för historik)
     if (attachments.length > 0) {
       messageText = `${messageText}\n\n[Bifogade filer/bilder: ${attachments.map(a => a.name).join(', ')}]`.trim()
@@ -91,17 +91,17 @@ export function AIChatInterface({
           )}
 
           {messages.map((message) => (
-            <AIChatMessage 
-              key={message.id} 
-              message={message} 
+            <AIChatMessage
+              key={message.id}
+              message={message}
               assistantIcon={assistantIcon}
               assistantName={assistantName}
               token={token}
             />
           ))}
 
-          {/* Visa laddnings-indikator om vi väntar på första svaret */}
-          {isLoading && !messages.some(m => m.role === 'assistant' && (m.parts?.length || m.content)) && (
+          {/* Visa laddnings-indikator om sista meddelandet är från användaren och vi väntar på svar */}
+          {isLoading && messages[messages.length - 1]?.role === 'user' && (
             <div className="flex gap-3 text-sm">
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                 {assistantIcon || <Bot className="h-4 w-4 text-primary" />}
@@ -122,9 +122,9 @@ export function AIChatInterface({
         </div>
       </ScrollArea>
 
-      <AIChatInput 
-        onSend={handleSend} 
-        isLoading={isLoading} 
+      <AIChatInput
+        onSend={handleSend}
+        isLoading={isLoading}
         placeholder={placeholder}
         projectId={storagePathIdentifier}
         allowAttachments={allowAttachments}
@@ -132,4 +132,3 @@ export function AIChatInterface({
     </div>
   )
 }
-

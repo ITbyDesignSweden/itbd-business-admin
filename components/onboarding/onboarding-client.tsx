@@ -26,12 +26,15 @@ export function OnboardingClient({ token, featureIdeas }: OnboardingClientProps)
     body: {
       token,
     },
-    initialMessages: [
+    // Ändra initialMessages -> messages och använd 'parts'
+    messages: [
       {
         id: "welcome",
         role: "assistant",
-        content:
-          "Hej! 👋 Jag är din personliga SDR-assistent och finns här för att hjälpa er komma igång. Berätta gärna lite om era behov så hittar vi rätt lösning tillsammans.",
+        parts: [{
+          type: 'text',
+          text: "Hej! 👋 Jag är din personliga SDR-assistent och finns här för att hjälpa er komma igång. Berätta gärna lite om era behov så hittar vi rätt lösning tillsammans."
+        }],
       },
     ],
     onError: (error: Error) => {
@@ -58,10 +61,10 @@ export function OnboardingClient({ token, featureIdeas }: OnboardingClientProps)
 
   return (
     <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <PromptStarters 
+      <PromptStarters
         token={token}
         featureIdeas={featureIdeas}
-        onPromptClick={handlePromptClick} 
+        onPromptClick={handlePromptClick}
       />
       <SDRChat chat={chat} token={token} />
     </div>
