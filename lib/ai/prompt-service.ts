@@ -22,6 +22,21 @@ export const PROMPT_TYPES = {
 
 export type PromptType = typeof PROMPT_TYPES[keyof typeof PROMPT_TYPES];
 
+export const PROMPT_TYPE_LABELS: Record<PromptType, string> = {
+  [PROMPT_TYPES.CUSTOMER_CHAT]: 'Kundchatt (AI Architect)',
+  [PROMPT_TYPES.LEAD_ANALYSIS_SYSTEM]: 'Lead Analys (System)',
+  [PROMPT_TYPES.LEAD_ANALYSIS_USER]: 'Lead Analys (User)',
+  [PROMPT_TYPES.INTERNAL_SPEC]: 'Teknisk Specifikation',
+  [PROMPT_TYPES.ORG_ENRICHMENT_SYSTEM]: 'Företagsanalys (System)',
+  [PROMPT_TYPES.ORG_ENRICHMENT_USER]: 'Företagsanalys (User)',
+  [PROMPT_TYPES.SDR_STARTERS_SYSTEM]: 'SDR Starters (System)',
+  [PROMPT_TYPES.SDR_STARTERS_USER]: 'SDR Starters (User)',
+  [PROMPT_TYPES.SDR_CHAT_SYSTEM]: 'SDR Chatt (System)',
+  [PROMPT_TYPES.TOOL_MANAGE_FEATURE_IDEA]: 'Verktyg: Hantera Funktionsidé',
+  [PROMPT_TYPES.TOOL_SUBMIT_FEATURE_REQUEST]: 'Verktyg: Skicka Funktionsförfrågan',
+  [PROMPT_TYPES.TOOL_GENERATE_PILOT_PROPOSAL]: 'Verktyg: Generera Pilotförslag',
+};
+
 /**
  * Ersätter {{variable}} i en sträng med värden från ett objekt.
  */

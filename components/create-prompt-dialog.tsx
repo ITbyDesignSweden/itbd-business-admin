@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PROMPT_TYPES } from '@/lib/ai/prompt-service';
+import { PROMPT_TYPES, PROMPT_TYPE_LABELS } from '@/lib/ai/prompt-service';
 
 export function CreatePromptDialog() {
   const [open, setOpen] = useState(false);
@@ -43,12 +43,12 @@ export function CreatePromptDialog() {
 
     try {
       await createPrompt({ name, content, prompt_type, is_active: isActive });
-      
+
       toast({
         title: 'Prompt skapad',
         description: `${name} har lagts till.`,
       });
-      
+
       setOpen(false);
     } catch (error) {
       toast({
@@ -96,12 +96,11 @@ export function CreatePromptDialog() {
                   <SelectValue placeholder="Välj typ" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={PROMPT_TYPES.CUSTOMER_CHAT}>Kundchatt (AI Architect)</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.LEAD_ANALYSIS_SYSTEM}>Lead Analys (System)</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.LEAD_ANALYSIS_USER}>Lead Analys (User)</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.INTERNAL_SPEC}>Teknisk Specifikation</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.ORG_ENRICHMENT_SYSTEM}>Företagsanalys (System)</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.ORG_ENRICHMENT_USER}>Företagsanalys (User)</SelectItem>
+                  {Object.entries(PROMPT_TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -143,4 +142,3 @@ export function CreatePromptDialog() {
     </Dialog>
   );
 }
-

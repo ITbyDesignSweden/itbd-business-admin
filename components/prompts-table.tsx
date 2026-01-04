@@ -8,17 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { EditPromptDialog } from "@/components/edit-prompt-dialog"
 import { TogglePromptButton } from "@/components/toggle-prompt-button"
-import { PROMPT_TYPES } from "@/lib/ai/prompt-service"
+import { PROMPT_TYPES, PROMPT_TYPE_LABELS } from "@/lib/ai/prompt-service"
 import { type AIPrompt } from "@/lib/types/database"
-
-const CATEGORY_LABELS: Record<string, string> = {
-  [PROMPT_TYPES.CUSTOMER_CHAT]: 'Kundchatt (AI Architect)',
-  [PROMPT_TYPES.LEAD_ANALYSIS_SYSTEM]: 'Lead Analys (System)',
-  [PROMPT_TYPES.LEAD_ANALYSIS_USER]: 'Lead Analys (User)',
-  [PROMPT_TYPES.INTERNAL_SPEC]: 'Teknisk Specifikation',
-  [PROMPT_TYPES.ORG_ENRICHMENT_SYSTEM]: 'Företagsanalys (System)',
-  [PROMPT_TYPES.ORG_ENRICHMENT_USER]: 'Företagsanalys (User)',
-}
 
 interface PromptsTableProps {
   prompts: AIPrompt[]
@@ -30,7 +21,7 @@ export function PromptsTable({ prompts }: PromptsTableProps) {
 
   const filteredPrompts = prompts.filter((prompt) =>
     prompt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (CATEGORY_LABELS[prompt.prompt_type as keyof typeof CATEGORY_LABELS] || prompt.prompt_type).toLowerCase().includes(searchQuery.toLowerCase())
+    (PROMPT_TYPE_LABELS[prompt.prompt_type as keyof typeof PROMPT_TYPE_LABELS] || prompt.prompt_type).toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   function toggleRowExpansion(promptId: string) {
@@ -77,11 +68,11 @@ export function PromptsTable({ prompts }: PromptsTableProps) {
             ) : (
               filteredPrompts.map((prompt) => {
                 const isExpanded = expandedRow === prompt.id
-                
+
                 return (
                   <Fragment key={prompt.id}>
-                    <TableRow 
-                      className={`cursor-pointer hover:bg-muted/50 ${prompt.is_active ? 'bg-green-500/5' : ''}`} 
+                    <TableRow
+                      className={`cursor-pointer hover:bg-muted/50 ${prompt.is_active ? 'bg-green-500/5' : ''}`}
                       onClick={() => toggleRowExpansion(prompt.id)}
                     >
                       <TableCell>
@@ -96,7 +87,7 @@ export function PromptsTable({ prompts }: PromptsTableProps) {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {CATEGORY_LABELS[prompt.prompt_type as keyof typeof CATEGORY_LABELS] || prompt.prompt_type}
+                          {PROMPT_TYPE_LABELS[prompt.prompt_type as keyof typeof PROMPT_TYPE_LABELS] || prompt.prompt_type}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -116,8 +107,8 @@ export function PromptsTable({ prompts }: PromptsTableProps) {
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-2">
-                          <TogglePromptButton 
-                            promptId={prompt.id} 
+                          <TogglePromptButton
+                            promptId={prompt.id}
                             isActive={prompt.is_active}
                             promptName={prompt.name}
                             promptType={prompt.prompt_type}
@@ -157,6 +148,3 @@ export function PromptsTable({ prompts }: PromptsTableProps) {
     </Card>
   )
 }
-
-
-

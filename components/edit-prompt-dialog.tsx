@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PROMPT_TYPES } from '@/lib/ai/prompt-service';
+import { PROMPT_TYPES, PROMPT_TYPE_LABELS } from '@/lib/ai/prompt-service';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,12 +59,12 @@ export function EditPromptDialog({ prompt }: EditPromptDialogProps) {
 
     try {
       await updatePrompt(prompt.id, { name, content, prompt_type, is_active: isActive });
-      
+
       toast({
         title: 'Prompt uppdaterad',
         description: `${name} har sparats.`,
       });
-      
+
       setOpen(false);
     } catch (error) {
       toast({
@@ -131,12 +131,11 @@ export function EditPromptDialog({ prompt }: EditPromptDialogProps) {
                   <SelectValue placeholder="Välj typ" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={PROMPT_TYPES.CUSTOMER_CHAT}>Kundchatt (AI Architect)</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.LEAD_ANALYSIS_SYSTEM}>Lead Analys (System)</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.LEAD_ANALYSIS_USER}>Lead Analys (User)</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.INTERNAL_SPEC}>Teknisk Specifikation</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.ORG_ENRICHMENT_SYSTEM}>Företagsanalys (System)</SelectItem>
-                  <SelectItem value={PROMPT_TYPES.ORG_ENRICHMENT_USER}>Företagsanalys (User)</SelectItem>
+                  {Object.entries(PROMPT_TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -178,7 +177,7 @@ export function EditPromptDialog({ prompt }: EditPromptDialogProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Är du säker?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Detta kommer permanent ta bort prompten &quot;{prompt.name}&quot;. 
+                    Detta kommer permanent ta bort prompten &quot;{prompt.name}&quot;.
                     Denna åtgärd kan inte ångras.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -205,4 +204,3 @@ export function EditPromptDialog({ prompt }: EditPromptDialogProps) {
     </Dialog>
   );
 }
-

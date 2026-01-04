@@ -1,5 +1,6 @@
-export type OrganizationStatus = "pilot" | "active" | "churned"
-export type ProjectStatus = "backlog" | "in_progress" | "completed" | "cancelled"
+// lib/types/database.ts
+export type OrganizationStatus = "pilot" | "active_pilot" | "active" | "churned"
+export type ProjectStatus = "backlog" | "active_pilot" | "in_progress" | "completed" | "cancelled"
 export type SubscriptionStatus = "active" | "paused" | "cancelled" | "inactive"
 export type PilotRequestStatus = "pending" | "approved" | "rejected"
 export type EnrichmentMode = "manual" | "assist" | "autopilot"
@@ -57,6 +58,8 @@ export interface Project {
   title: string
   status: ProjectStatus
   cost_credits: number
+  source_feature_idea_id: string | null
+  ai_blueprint: string | null
 }
 
 export interface ApiKey {

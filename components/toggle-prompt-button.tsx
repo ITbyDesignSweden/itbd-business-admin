@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { togglePromptActive } from '@/actions/ai-prompts';
 import { Power, PowerOff } from 'lucide-react';
+import { PROMPT_TYPE_LABELS, type PromptType } from '@/lib/ai/prompt-service';
 
 interface TogglePromptButtonProps {
   promptId: string;
@@ -21,12 +22,14 @@ export function TogglePromptButton({ promptId, isActive, promptName, promptType 
     setLoading(true);
     try {
       await togglePromptActive(promptId, isActive, promptType);
-      
+
+      const typeLabel = PROMPT_TYPE_LABELS[promptType as PromptType] || promptType;
+
       toast({
         title: isActive ? 'Prompt inaktiverad' : 'Prompt aktiverad',
-        description: isActive 
+        description: isActive
           ? `${promptName} är nu inaktiv.`
-          : `${promptName} är nu aktiv och används för ${promptType}.`,
+          : `${promptName} är nu aktiv och används för ${typeLabel}.`,
       });
     } catch (error) {
       toast({
@@ -60,4 +63,3 @@ export function TogglePromptButton({ promptId, isActive, promptName, promptType 
     </Button>
   );
 }
-

@@ -1,10 +1,8 @@
 # active_sprint.md
 
-## 🧠 Sprint 10: The SDR Brain & Closing Logic
+## 🧠 Sprint 11: The Technical Handover & Mission Control
 
-**Mål:** Göra Onboarding-chatten ("Säljrummet") intelligent och kapabel att agera. Agenten ska kunna läsa/skriva idéer till databasen och slutligen konvertera leadet till ett skarpt projekt och en inloggad användare.
-
-**Strategi:** Använd **Vercel AI SDK (Server-side Tools)**. All kommunikation signeras med token från Sprint 8. Ingen `orgId` får någonsin skickas från klienten eller finnas i URL:en.
+**Mål:** Säkra att den rika informationen från säljsamtalet inte går förlorad utan sparas som en teknisk kravspecifikation ("Blueprint"). Vi skapar även en "Mission Control"-vy för Admin för att övervaka och granska dessa specifikationer innan utveckling startar.
 
 **Status:** 📅 Planned
 **Prio:** High
@@ -13,94 +11,87 @@
 
 ### 📋 Tickets & Specs
 
-#### 10.1 🧠 The SDR System Prompt (Context Injection)
-**Syfte:** Ge agenten "Minne" och säkra att den vet vem den pratar med.
-* **Fil:** `app/api/onboarding-chat/route.ts` (finns redan, behöver bara utökas)
-* **Security Protocol:**
-    1.  Frontend (`useChat`) skickar `{ body: { token } }`.
-    2.  Backend extraherar `token` från request body.
-    3.  **Gatekeeper:** `const orgId = await validateInvitationToken(token)`.
-    4.  Om ogiltig -> Returnera 401 Unauthorized direkt.
-* **Data Fetching:**
-    * Använd `createAdminClient()` (Service Role) för att hämta:
-        * `Organization` (för att veta bransch/namn).
-        * `feature_ideas` (för att veta vad som redan föreslagits).
-* **System Prompt:**
-    * **Roll:** "Consultative Seller" för IT by Design.
-    * **Context:** Injicera företagsnamn, bransch och nuvarande lista på idéer.
-    * **Goal:** "Din uppgift är att förhandla fram ETT pilotprojekt (Small/Medium). Om kunden vill ha något stort/komplext, föreslå att vi 'parkerar' det i idébanken och börjar mindre."
-
-#### 10.2 🛠️ Tool: Manage Feature Ideas (The Memory)
-**Syfte:** Låta agenten manipulera idélisatan dynamiskt.
-* **Fil:** `lib/ai-tools/manage-feature-idea.ts`
-* **Tool Name:** `manage_feature_idea`
-* **Input Schema (Zod):**
-    ```typescript
-    z.object({
-      action: z.enum(['create', 'update', 'save', 'reject']),
-      title: z.string(),
-      description: z.string().optional(),
-      idea_id: z.string().uuid().optional() // Används vid update/save/reject
-    })
+#### 11.1 🗄️ Database: Blueprint Storage
+**Syfte:** Utöka `projects`-tabellen för att lagra tekniska specifikationer och koppla dem till idébanken.
+* **Fil:** `supabase/migrations/[timestamp]_project_blueprints.sql`
+* **SQL:**
+    ```sql
+    alter table projects
+    add column source_feature_idea_id uuid references feature_ideas(id),
+    add column ai_blueprint text; -- Här lagras Markdown-specen
     ```
-    **OBS:** Använder `saved` status istället för "park" (finns redan i DB enum)
-* **Execution Logic (Backend):**
-    * **VIKTIGT:** Tool-funktionen får `orgId` via closure i `route.ts`. Lita ALDRIG på ett org-id från LLM:en.
-    * Utför CRUD-operation mot `feature_ideas`-tabellen (med Admin Client).
-    * Actions:
-        - `create`: Skapa ny idé med status 'suggested' och source 'chat_agent'
-        - `update`: Uppdatera befintlig idé
-        - `save`: Ändra status till 'saved' (kunden vill komma ihåg detta)
-        - `reject`: Ändra status till 'rejected' (kunden inte intresserad)
-    * Returnera kort bekräftelse: "Saved 'Lagerkoll' to your ideas".
-* **Frontend:** Agenten bekräftar muntligt ("Jag har lagt till det i listan").
 
-#### 10.3 🤝 Tool: Generate Proposal (The Artifact)
-**Syfte:** Det visuella "Avslutet".
-* **Fil:** `lib/ai-tools/generate-pilot-proposal.ts`
-* **Tool Name:** `generate_pilot_proposal`
-* **Input Schema (Zod):**
+#### 11.2 🛠️ Tool: Upgrade `generate_pilot_proposal`
+**Syfte:** Verktyget måste generera två lager av information: En för kunden (UI) och en för utvecklaren (DB).
+* **Fil:** `app/api/chat/route.ts` (Tool Definition)
+* **Zod Schema Update:**
     ```typescript
     z.object({
+      // UI-fält (Sälj):
       title: z.string(),
       summary: z.string(),
-      complexity: z.enum(['small', 'medium']), // Styr scope
-      key_features: z.array(z.string()),
-      estimated_credits: z.number().int().min(1).max(30)
+      complexity: z.enum(['small', 'medium']), // Mappar mot kostnad internt
+      estimated_credits: z.number().describe("Föreslagen kostnad i krediter (t.ex. 2, 5, 10)"),
+
+      // Backend-fält (Arkitekt):
+      related_feature_id: z.string().optional().describe("ID på den feature_idea som diskuterats, om någon."),
+      technical_spec: z.string().describe(`
+        DETALJERAD KRAVSPECIFIKATION FÖR UTVECKLARE (Markdown).
+        Måste innehålla:
+        1. Datamodell (Tabeller, kolumner, relationer).
+        2. Vyer/Sidor som behövs (t.ex. '/inventory', '/admin').
+        3. Affärsregler och RLS-policyer.
+        4. Tech Stack: Supabase + Next.js.
+      `)
     })
     ```
-* **Execution:** Returnerar proposal data till frontend (ingen DB-operation här)
-* **Frontend UX (`components/ai/ai-chat-message.tsx`):**
-    * Lyssna på `tool-invocation` med `state === 'result'`.
-    * När `toolName === 'generate_pilot_proposal'` -> Rendera `<ProposalCard />`.
-    * **ProposalCard** (`components/onboarding/proposal-card.tsx`): 
-        - Visar titel, sammanfattning, features och kostnad
-        - Primary Button: **[Starta Pilotprojekt]** som anropar `acceptProposal()`
 
-#### 10.4 🚀 Action: The Handshake (Convert to User)
-**Syfte:** Konvertera besökare till användare och skapa projektet.
-* **Fil:** `actions/handshake.ts`
-* **Funktion:** `acceptProposal(token: string, proposalData: ProposalData)`
-* **Flow:**
-    1.  **Validate:** `validateInvitationToken(token)` -> få `orgId`.
-    2.  **DB - Project:** Skapa rad i `projects`-tabellen (kopplat till `orgId`).
-        * Titel: `proposalData.title`
-        * Status: `active_pilot`
-        * Cost: `proposalData.estimated_credits`
-        * Metadata: Spara hela proposal som JSON i `project_metadata` (behöver läggas till via migration om saknas)
-    3.  **DB - Org:** Uppdatera `organizations.status` -> `active_pilot`.
-    4.  **DB - Token:** Sätt `invitation_tokens.used_at = now()` (markera som använd).
-    5.  **Auth (Supabase Admin):**
-        * Hämta original `pilot_request` via `org_id` för att få kontakt-email
-        * Kör `supabase.auth.admin.inviteUserByEmail(email, { data: { org_id: orgId } })`
-        * Detta skickar automatiskt ett "Välkommen, sätt ditt lösenord"-mail.
-* **Return:** `{ success: true, projectId: string }`.
-* **Frontend:** Vid success, visa success-meddelande i chatten.
+#### 11.3 🧠 System Prompt: "The Hidden Architect"
+**Syfte:** Instruera Sälj-agenten att agera arkitekt i bakgrunden.
+* **Fil:** `app/api/chat/route.ts`
+* **Tillägg i Prompt:**
+    > "När du använder verktyget `generate_pilot_proposal`, är din uppgift dubbel:
+    > 1. **Till kunden:** Ge en kort, säljande sammanfattning och ett prisestimat.
+    > 2. **Till parametern `technical_spec`:** Skriv en extremt detaljerad instruktion till den AI/Utvecklare som ska bygga koden. Översätt kundens vaga önskemål till konkreta databastabeller, fältnamn och funktioner. Var tekniskt explicit."
+
+#### 11.4 ⚡ Action: Save Project with Blueprint
+**Syfte:** Spara ner den genererade datan och skapa projektet när kunden accepterar.
+* **Fil:** `actions/create-project.ts` (Ersätter/Integrerar logik från tidigare `handshake.ts`)
+* **Funktion:** `acceptProposal(token: string, proposalData: any)`
+* **Logik:**
+    1.  Validera token (Sprint 8).
+    2.  **Insert till `projects`:**
+        * `title`: `proposalData.title`
+        * `cost_credits`: `proposalData.estimated_credits` (Notera namnbyte mot DB)
+        * `ai_blueprint`: `proposalData.technical_spec`
+        * `source_feature_idea_id`: `proposalData.related_feature_id`
+        * `status`: 'active_pilot' (eller 'backlog' beroende på credits)
+    3.  **Update `feature_ideas`:** Om ID finns, sätt `status` = 'planned'.
+    4.  **Auth Invite:** (Som i Sprint 10) Bjud in användaren via e-post.
+
+#### 11.5 ⚛️ Frontend: Proposal Card Data Flow
+**Syfte:** Se till att React-komponenten bär med sig den dolda datan.
+* **Komponent:** `components/onboarding/proposal-card.tsx`
+* **Logik:**
+    * Spara hela `proposalData` (inklusive den dolda `technical_spec`) i komponentens state eller direkt i onClick-handlern.
+    * Vid klick på "Starta": Anropa `acceptProposal` med hela objektet.
+
+#### 11.6 🖥️ Admin UI: Global Project Pipeline
+**Syfte:** En ny huvudvy i Admin Portalen för att se alla projekt och granska blueprints.
+* **Route:** `/admin/projects` (Ny sida)
+* **Data Fetching:**
+    * Join `projects` + `organizations`.
+* **UI Komponenter:**
+    * **Data Table:** Status (Badge), Projektnamn, Organisation (Länk), Credits, Datum.
+    * **Tabs:** "All", "Active Pilots", "Backlog".
+    * **Blueprint Viewer (Sheet/Drawer):**
+        * Vid klick på rad/knapp -> Öppna sidopanel.
+        * Visa `ai_blueprint` renderad med `react-markdown`.
+        * Här kan Admin snabbt avgöra om AI:n lovat för mycket eller för lite.
 
 ---
 
 ### 📝 Definition of Done
-1.  **Memory:** Jag kan säga "Vi behöver också BankID", och en ny rad skapas i `feature_ideas` i databasen.
-2.  **Proposal:** När jag säger "Det låter bra, vi kör på det", renderar agenten ett snyggt kort (inte text/JSON).
-3.  **Conversion:** Klick på "Starta" skapar projektet i databasen och skickar en invite till min mail.
-4.  **Security:** Försök att anropa `/api/chat` utan giltig token returnerar 401.
+1.  **Persistence:** Jag kan genomföra en sälj-chat, och i databasen sparas nu en lång Markdown-text i kolumnen `ai_blueprint`.
+2.  **Linkage:** Om vi diskuterade en sparad idé, är projektet korrekt länkat till den idén via `source_feature_idea_id`.
+3.  **Admin View:** Jag kan logga in som admin, gå till `/admin/projects`, klicka på det nya projektet och läsa den tekniska specifikationen i en snygg sidopanel.

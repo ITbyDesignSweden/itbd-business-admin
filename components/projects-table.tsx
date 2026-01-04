@@ -13,6 +13,8 @@ function getStatusBadge(status: string) {
   switch (status) {
     case "backlog":
       return <Badge variant="secondary">Backlog</Badge>
+    case "active_pilot":
+      return <Badge variant="default" className="bg-purple-500">Aktiv Pilot</Badge>
     case "in_progress":
       return <Badge variant="default" className="bg-blue-500">Pågående</Badge>
     case "completed":

@@ -15,6 +15,9 @@ export interface ProposalData {
   key_features: string[]
   estimated_credits: number
   estimated_price_sek: number
+  // Sprint 11: Hidden fields for technical handover (not displayed in UI)
+  related_feature_id?: string | null
+  technical_spec: string
 }
 
 interface ProposalCardProps {
@@ -85,12 +88,17 @@ export function ProposalCard({ proposal, token }: ProposalCardProps) {
         <div>
           <h4 className="text-sm font-semibold mb-2 text-foreground">Ingår i projektet</h4>
           <ul className="space-y-1.5">
-            {proposal.key_features.map((feature, index) => (
+            {(proposal.key_features || []).map((feature, index) => (
               <li key={index} className="flex items-start gap-2 text-sm">
                 <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
                 <span className="text-muted-foreground">{feature}</span>
               </li>
             ))}
+            {(!proposal.key_features || proposal.key_features.length === 0) && (
+              <li className="text-sm text-muted-foreground italic">
+                Inga specifika funktioner angivna.
+              </li>
+            )}
           </ul>
         </div>
       </CardContent>

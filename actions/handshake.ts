@@ -10,6 +10,9 @@ export interface ProposalData {
   key_features: string[];
   estimated_credits: number;
   estimated_price_sek: number;
+  // Sprint 11: Hidden fields for technical handover
+  related_feature_id?: string | null;
+  technical_spec: string;
 }
 
 interface AcceptProposalResult {
@@ -88,7 +91,7 @@ export async function acceptProposal(
     const contactEmail = pilotRequest.email;
     console.log('Organization:', org.name, '| Contact Email:', contactEmail);
 
-    // Step 3: Create project
+    // Step 3: Create project with blueprint (Sprint 11: The Technical Handover)
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .insert({
@@ -96,6 +99,9 @@ export async function acceptProposal(
         title: proposalData.title,
         status: 'active_pilot',
         cost_credits: proposalData.estimated_credits,
+        // Sprint 11: Save technical specification and link to feature idea
+        ai_blueprint: proposalData.technical_spec,
+        source_feature_idea_id: proposalData.related_feature_id || null,
       })
       .select('id')
       .single();
@@ -109,8 +115,27 @@ export async function acceptProposal(
     }
 
     console.log('✅ Project created:', project.id);
+    console.log('📋 Blueprint saved:', proposalData.technical_spec.length, 'characters');
+    if (proposalData.related_feature_id) {
+      console.log('🔗 Linked to feature idea:', proposalData.related_feature_id);
+    }
 
-    // Step 4: Update organization status to active_pilot
+    // Step 4: If linked to a feature idea, update its status to 'planned'
+    if (proposalData.related_feature_id) {
+      const { error: featureUpdateError } = await supabase
+        .from('feature_ideas')
+        .update({ status: 'planned' })
+        .eq('id', proposalData.related_feature_id);
+
+      if (featureUpdateError) {
+        console.error('Error updating feature idea status:', featureUpdateError);
+        // Non-critical - continue anyway
+      } else {
+        console.log('✅ Feature idea marked as planned');
+      }
+    }
+
+    // Step 5: Update organization status to active_pilot
     const { error: orgUpdateError } = await supabase
       .from('organizations')
       .update({ status: 'active_pilot' })
@@ -123,7 +148,7 @@ export async function acceptProposal(
       console.log('✅ Organization status updated to active_pilot');
     }
 
-    // Step 5: Mark token as used (prevents re-use of onboarding link)
+    // Step 6: Mark token as used (prevents re-use of onboarding link)
     try {
       await markTokenAsUsed(token);
       console.log('✅ Token marked as used');
@@ -132,7 +157,7 @@ export async function acceptProposal(
       // Non-critical - continue
     }
 
-    // Step 6: Send authentication invitation via Supabase Auth Admin
+    // Step 7: Send authentication invitation via Supabase Auth Admin
     try {
       const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
         contactEmail,

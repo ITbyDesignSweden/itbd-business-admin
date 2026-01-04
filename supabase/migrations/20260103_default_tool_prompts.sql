@@ -40,9 +40,12 @@ TRIGGER-ORD: "Låter bra", "Vi kör på det", "Ja tack", "Starta", "Gör så"
 
 VIKTIGT: Du MÅSTE härleda komplexitet och kostnad från er diskussion:
 - title: En tydlig rubrik för projektet (minst 5 tecken)
+- summary: En kort, säljande sammanfattning för kunden.
+- key_features: MÅSTE ANGES. En lista (array) med 3-5 konkreta funktioner som ingår.
 - complexity: "small" (1-5 dagar) eller "medium" (1-2 veckor).
 - estimated_credits: Måste vara ett heltal mellan 1-30.
   (Small: 1-10 krediter, Medium: 10-30 krediter).
+- technical_spec: En extremt detaljerad teknisk specifikation för utvecklaren.
 
 Detta skapar ett visuellt förslag som kunden kan godkänna.
 Du får ALDRIG lämna title, complexity eller estimated_credits tomma.',
