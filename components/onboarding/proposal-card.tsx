@@ -23,6 +23,7 @@ export interface ProposalData {
 interface ProposalCardProps {
   proposal: ProposalData
   token: string
+  onAccepted?: () => void
 }
 
 const complexityLabels = {
@@ -30,7 +31,7 @@ const complexityLabels = {
   medium: { label: 'Medium', color: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400', time: '1-2 veckor' },
 }
 
-export function ProposalCard({ proposal, token }: ProposalCardProps) {
+export function ProposalCard({ proposal, token, onAccepted }: ProposalCardProps) {
   const [isAccepting, setIsAccepting] = useState(false)
   const [isAccepted, setIsAccepted] = useState(false)
 
@@ -47,6 +48,8 @@ export function ProposalCard({ proposal, token }: ProposalCardProps) {
         toast.success("Pilotprojekt startat!", {
           description: "Kolla din e-post för inloggningsuppgifter."
         })
+        // Trigger callback to notify AI
+        onAccepted?.()
       } else {
         toast.error("Kunde inte starta projekt", {
           description: result.error || "Försök igen eller kontakta support."

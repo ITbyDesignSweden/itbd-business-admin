@@ -97,6 +97,7 @@ export function AIChatInterface({
               assistantIcon={assistantIcon}
               assistantName={assistantName}
               token={token}
+              onProposalAccepted={(text) => handleSend(text, [])}
             />
           ))}
 
